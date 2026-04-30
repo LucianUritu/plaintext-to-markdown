@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Plain Text to Markdown Converter</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <header>
+    <h1>Plain Text to Markdown Converter</h1>
+    <p>Phase 1 prototype for turning simple book content into Markdown.</p>
+  </header>
+
+  <main>
+    <div class="toolbar">
+      <button id="copyButton">Copy Markdown</button>
+      <button id="downloadButton">Download .md</button>
+      <label class="image-upload-button">
+        Add Image
+        <input id="imageInput" type="file" accept="image/*" />
+      </label>
+      <button id="loadExampleButton" class="secondary">Load Example</button>
+      <button id="clearButton" class="secondary">Clear</button>
+
+    </div>
+
+    <div class="image-options">
+      <input
+        id="imageAltInput"
+        type="text"
+        placeholder="Image alt text, e.g. Diagram of programming languages"
+      />
+    </div>
+
+    <div class="workspace">
+      <section class="panel">
+        <h2>Plain Text Input</h2>
+        <textarea
+          id="plainTextInput"
+          placeholder="Write or paste your book content here..."
+        ></textarea>
+      </section>
+
+      <section class="panel">
+        <h2>Markdown Output</h2>
+        <pre id="markdownOutput"></pre>
+      </section>
+
+      <section class="panel">
+        <h2>Rendered Preview</h2>
+        <div id="previewOutput" class="preview"></div>
+      </section>
+    </div>
+
+    <p id="status" class="status"></p>
+  </main>
+
+  <script src="./script.js"></script>
+</body>
+</html>
