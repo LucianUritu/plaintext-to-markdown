@@ -97,6 +97,8 @@ Always review the rendered preview before downloading the Markdown file.`;
   updateOutputs();
 
   plainTextInput.addEventListener("input", updateOutputs);
+  plainTextInput.addEventListener("keydown", handleEditorShortcuts);
+  
   copyButton.addEventListener("click", copyMarkdown);
   downloadButton.addEventListener("click", downloadMarkdown);
   loadExampleButton.addEventListener("click", loadExample);
@@ -459,4 +461,49 @@ Always review the rendered preview before downloading the Markdown file.`;
       statusMessage.textContent = "";
     }, 2500);
   }
+
+  function handleEditorShortcuts(event) {
+  const isModifierPressed = event.ctrlKey || event.metaKey;
+
+  if (!isModifierPressed) {
+    return;
+  }
+
+  const key = event.key.toLowerCase();
+
+  if (key === "b") {
+    event.preventDefault();
+    wrapSelectionWithMarkdown("**");
+  }
+
+  if (key === "i") {
+    event.preventDefault();
+    wrapSelectionWithMarkdown("*");
+  }
+}
+
+function wrapSelectionWithMarkdown(marker) {
+  const start = plainTextInput.selectionStart;
+  const end = plainTextInput.selectionEnd;
+
+  const selectedText = plainTextInput.value.substring(start, end);
+  const before = plainTextInput.value.substring(0, start);
+  const after = plainTextInput.value.substring(end);
+
+  const insertedText = marker + selectedText + marker;
+
+  plainTextInput.value = before + insertedText + after;
+
+  if (selectedText.length === 0) {
+    const cursorPosition = start + marker.length;
+    plainTextInput.setSelectionRange(cursorPosition, cursorPosition);
+  } else {
+    const selectionStart = start + marker.length;
+    const selectionEnd = selectionStart + selectedText.length;
+    plainTextInput.setSelectionRange(selectionStart, selectionEnd);
+  }
+
+  plainTextInput.focus();
+  updateOutputs();
+}
 });
