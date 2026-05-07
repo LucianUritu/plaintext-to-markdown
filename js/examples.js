@@ -10,6 +10,14 @@ The first non-empty line is always used as the main title of the page.
 
 Italic text
 
+Avoid automatic headings
+
+If a short line becomes a heading but you want it to stay as normal text, start the line with a backslash.
+
+Example:
+
+\\This line will stay as normal paragraph text
+
 To create italic text, wrap the text with one star.
 
 Example:

@@ -15,6 +15,11 @@ export function plainTextToMarkdown(input) {
       continue;
     }
 
+    if (isPlainParagraphOverride(line)) {
+      output.push(removePlainParagraphOverride(line));
+      continue;
+    }
+
     if (isMarkdownImage(line)) {
       output.push(line);
       continue;
@@ -50,6 +55,15 @@ export function plainTextToMarkdown(input) {
   }
 
   return cleanMarkdown(output);
+}
+
+
+function isPlainParagraphOverride(line) {
+  return line.startsWith("\\");
+}
+
+function removePlainParagraphOverride(line) {
+  return line.substring(1).trimStart();
 }
 
 export function isMarkdownImage(line) {
