@@ -172,7 +172,7 @@ pre {
   font-weight: bold;
 }
 
-/* Phase 2: Book and chapter views */
+/* Phase 2: Views */
 
 .hidden {
   display: none !important;
@@ -181,6 +181,8 @@ pre {
 .app-view {
   width: 100%;
 }
+
+/* Home page */
 
 .home-card {
   max-width: 520px;
@@ -202,11 +204,7 @@ pre {
   line-height: 1.6;
 }
 
-.book-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
+/* Book overview */
 
 .book-header {
   display: flex;
@@ -214,15 +212,52 @@ pre {
   align-items: center;
   gap: 16px;
   margin-bottom: 20px;
-  padding: 20px;
+  padding: 24px 26px;
   background: white;
   border-radius: 14px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
-.book-header p {
-  margin: 0;
+.book-title-area {
+  flex: 1;
+}
+
+.book-title-input {
+  width: 100%;
+  max-width: 620px;
+  padding: 4px 0 6px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  outline: none;
+  background: transparent;
+  color: #111827;
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.book-title-input:hover {
+  border-bottom-color: #d1d5db;
+}
+
+.book-title-input:focus {
+  border-bottom-color: #2563eb;
+}
+
+.book-title-input::placeholder {
+  color: #9ca3af;
+}
+
+.book-title-area p {
+  margin: 6px 0 0;
   color: #6b7280;
+  font-size: 18px;
+}
+
+.book-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .chapter-list {
@@ -259,6 +294,8 @@ pre {
   transform: translateY(-2px);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
 }
+
+/* Chapter editor */
 
 .editor-topbar {
   display: flex;
@@ -299,37 +336,15 @@ pre {
   .book-actions,
   .editor-topbar {
     flex-direction: column;
-    -items: stretch;
-  }  
+    align-items: stretch;
+  }
 
   .home-card {
     margin: 30px auto;
     padding: 24px;
   }
 
-  .book-title-area {
-  flex: 1;
-}
-
   .book-title-input {
-    width: 100%;
-    max-width: 520px;
-    padding: 8px 0;
-    border: none;
-    border-bottom: 2px solid transparent;
-    outline: none;
-    background: transparent;
-    color: #111827;
-    font-size: 34px;
-    font-weight: bold;
-  }
-
-  .book-title-input:focus {
-    border-bottom-color: #2563eb;
-  }
-
-  .book-title-area p {
-    margin: 6px 0 0;
-    color: #6b7280;
+    font-size: 28px;
   }
 }
