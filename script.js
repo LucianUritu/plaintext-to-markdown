@@ -1,3 +1,5 @@
+// Not in use anymore. Keep just in case of backup!
+
 document.addEventListener("DOMContentLoaded", function () {
   const plainTextInput = document.getElementById("plainTextInput");
   const markdownOutput = document.getElementById("markdownOutput");
