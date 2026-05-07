@@ -1,5 +1,19 @@
 export function getEditorElements() {
   return {
+    homeView: document.getElementById("homeView"),
+    bookView: document.getElementById("bookView"),
+    editorView: document.getElementById("editorView"),
+
+    closeBookButton: document.getElementById("closeBookButton"),
+    newBookButton: document.getElementById("newBookButton"),
+    addChapterButton: document.getElementById("addChapterButton"),
+    backToBookButton: document.getElementById("backToBookButton"),
+    
+    
+    bookTitleInput: document.getElementById("bookTitleInput"),
+    chapterList: document.getElementById("chapterList"),
+    chapterTitleInput: document.getElementById("chapterTitleInput"),
+
     plainTextInput: document.getElementById("plainTextInput"),
     markdownOutput: document.getElementById("markdownOutput"),
     previewOutput: document.getElementById("previewOutput"),
@@ -13,6 +27,14 @@ export function getEditorElements() {
     imageInput: document.getElementById("imageInput"),
     imageAltInput: document.getElementById("imageAltInput")
   };
+}
+
+export function showView(viewToShow, allViews) {
+  for (const view of allViews) {
+    view.classList.add("hidden");
+  }
+
+  viewToShow.classList.remove("hidden");
 }
 
 export function showStatus(statusElement, message, duration = 2500) {

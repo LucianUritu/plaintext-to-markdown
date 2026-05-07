@@ -9,50 +9,93 @@
 <body>
   <header>
     <h1>Plain Text to Markdown Converter</h1>
-    <p>Phase 1 prototype for turning simple book content into Markdown.</p>
+    <p>Phase 2 prototype for creating books with multiple Markdown chapters.</p>
   </header>
 
   <main>
-    <div class="toolbar">
-      <button id="copyButton">Copy Markdown</button>
-      <button id="downloadButton">Download .md</button>
+    <section id="homeView" class="app-view">
+      <div class="home-card">
+        <h2>Start a book</h2>
+        <p>Create a book, add chapters, and edit each chapter with the Markdown converter.</p>
 
-      <label class="image-upload-button">
-        Add Image
-        <input id="imageInput" type="file" accept="image/*" />
-      </label>
+        <button id="newBookButton">New Book</button>
+      </div>
+    </section>
 
-      <button id="loadExampleButton" class="secondary">Load Example</button>
-      <button id="clearButton" class="secondary">Clear</button>
-    </div>
+    <<section id="bookView" class="app-view hidden">
+      <div class="book-header">
+        <div class="book-title-area">
+          <input
+            id="bookTitleInput"
+            class="book-title-input"
+            type="text"
+            placeholder="Book title"
+          />
+          <p>Select a chapter to edit, or add a new chapter.</p>
+        </div>
 
-    <div class="image-options">
-      <input
-        id="imageAltInput"
-        type="text"
-        placeholder="Image alt text, e.g. Diagram of programming languages"
-      />
-    </div>
+        <div class="book-actions">
+          <button id="closeBookButton" class="secondary">Close Book</button>
+          <button id="addChapterButton">Add Chapter</button>
+        </div>
+      </div>
 
-    <div class="workspace">
-      <section class="panel">
-        <h2>Plain Text Input</h2>
-        <textarea
-          id="plainTextInput"
-          placeholder="Write or paste your book content here..."
-        ></textarea>
-      </section>
+      <div id="chapterList" class="chapter-list"></div>
+    </section>
 
-      <section class="panel">
-        <h2>Markdown Output</h2>
-        <pre id="markdownOutput"></pre>
-      </section>
+    <section id="editorView" class="app-view hidden">
+      <div class="editor-topbar">
+        <button id="backToBookButton" class="secondary">← Back to Chapters</button>
 
-      <section class="panel">
-        <h2>Rendered Preview</h2>
-        <div id="previewOutput" class="preview"></div>
-      </section>
-    </div>
+        <input
+          id="chapterTitleInput"
+          class="chapter-title-input"
+          type="text"
+          placeholder="Chapter title"
+        />
+      </div>
+
+      <div class="toolbar">
+        <button id="copyButton">Copy Markdown</button>
+        <button id="downloadButton">Download .md</button>
+
+        <label class="image-upload-button">
+          Add Image
+          <input id="imageInput" type="file" accept="image/*" />
+        </label>
+
+        <button id="loadExampleButton" class="secondary">Load Example</button>
+        <button id="clearButton" class="secondary">Clear</button>
+      </div>
+
+      <div class="image-options">
+        <input
+          id="imageAltInput"
+          type="text"
+          placeholder="Image alt text, e.g. Diagram of programming languages"
+        />
+      </div>
+
+      <div class="workspace">
+        <section class="panel">
+          <h2>Plain Text Input</h2>
+          <textarea
+            id="plainTextInput"
+            placeholder="Write or paste your book content here..."
+          ></textarea>
+        </section>
+
+        <section class="panel">
+          <h2>Markdown Output</h2>
+          <pre id="markdownOutput"></pre>
+        </section>
+
+        <section class="panel">
+          <h2>Rendered Preview</h2>
+          <div id="previewOutput" class="preview"></div>
+        </section>
+      </div>
+    </section>
 
     <p id="status" class="status"></p>
   </main>

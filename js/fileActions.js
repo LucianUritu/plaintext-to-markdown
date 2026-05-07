@@ -7,13 +7,13 @@ export async function copyMarkdown(markdown, showStatus) {
   }
 }
 
-export function downloadMarkdown(markdown, showStatus) {
+export function downloadMarkdown(markdown, showStatus, filename = "chapter.md") {
   const blob = new Blob([markdown], { type: "text/markdown" });
   const url = URL.createObjectURL(blob);
 
   const link = document.createElement("a");
   link.href = url;
-  link.download = "chapter.md";
+  link.download = filename;
 
   document.body.appendChild(link);
   link.click();
