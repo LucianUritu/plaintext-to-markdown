@@ -22,7 +22,7 @@ export function saveBook(book) {
 export function createNewBook() {
   const book = {
     id: crypto.randomUUID(),
-    title: "Untitled Book",
+    title: "Enter Book Title",
     chapters: [
       {
         id: crypto.randomUUID(),
@@ -53,7 +53,7 @@ export function addChapter(book) {
 }
 
 export function updateBookTitle(book, title) {
-  book.title = title.trim() || "Untitled Book";
+  book.title = title.trim() || "Enter Book Title";
   saveBook(book);
 }
 
