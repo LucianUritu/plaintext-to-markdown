@@ -26,7 +26,7 @@ export function createNewBook() {
     chapters: [
       {
         id: crypto.randomUUID(),
-        title: "Chapter 1",
+        title: "Untitled Chapter",
         content: ""
       }
     ],
@@ -52,6 +52,11 @@ export function addChapter(book) {
   return newChapter;
 }
 
+export function updateBookTitle(book, title) {
+  book.title = title.trim() || "Untitled Book";
+  saveBook(book);
+}
+
 export function updateChapterContent(book, chapterId, content) {
   const chapter = findChapterById(book, chapterId);
 
@@ -74,18 +79,13 @@ export function updateChapterTitle(book, chapterId, title) {
   saveBook(book);
 }
 
-  export function setActiveChapter(book, chapterId) {
-    book.activeChapterId = chapterId;
-    saveBook(book);
-  }
+export function setActiveChapter(book, chapterId) {
+  book.activeChapterId = chapterId;
+  saveBook(book);
+}
 
-  export function findChapterById(book, chapterId) {
-    return book.chapters.find(function (chapter) {
+export function findChapterById(book, chapterId) {
+  return book.chapters.find(function (chapter) {
     return chapter.id === chapterId;
   });
-
-  export function updateBookTitle(book, title) {
-    book.title = title.trim() || "Untitled Book";
-    saveBook(book);
-  }
 }
