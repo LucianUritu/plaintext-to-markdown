@@ -8,7 +8,12 @@ export function loadBook() {
   }
 
   try {
-    return JSON.parse(savedBook);
+    const book = JSON.parse(savedBook);
+    const normalizedBook = normalizeBook(book);
+
+    saveBook(normalizedBook);
+
+    return normalizedBook;
   } catch (error) {
     console.error("Could not load saved book:", error);
     return null;
@@ -23,6 +28,11 @@ export function createNewBook() {
   const book = {
     id: crypto.randomUUID(),
     title: "Enter Book Title",
+    introduction: {
+      title: "Introduction",
+      content:
+        "Introduction\n\nWrite the introduction of your book here.\n\nThis page appears before Chapter 1 in the published TeachBooks book."
+    },
     chapters: [
       {
         id: crypto.randomUUID(),
@@ -30,7 +40,8 @@ export function createNewBook() {
         content: ""
       }
     ],
-    activeChapterId: null
+    activeChapterId: null,
+    activeItemType: "introduction"
   };
 
   saveBook(book);
@@ -38,6 +49,8 @@ export function createNewBook() {
 }
 
 export function addChapter(book) {
+  normalizeBook(book);
+
   const chapterNumber = book.chapters.length + 1;
 
   const newChapter = {
@@ -53,11 +66,29 @@ export function addChapter(book) {
 }
 
 export function updateBookTitle(book, title) {
+  normalizeBook(book);
+
   book.title = title.trim() || "Enter Book Title";
   saveBook(book);
 }
 
+export function updateIntroductionTitle(book, title) {
+  normalizeBook(book);
+
+  book.introduction.title = title.trim() || "Introduction";
+  saveBook(book);
+}
+
+export function updateIntroductionContent(book, content) {
+  normalizeBook(book);
+
+  book.introduction.content = content;
+  saveBook(book);
+}
+
 export function updateChapterContent(book, chapterId, content) {
+  normalizeBook(book);
+
   const chapter = findChapterById(book, chapterId);
 
   if (!chapter) {
@@ -69,6 +100,8 @@ export function updateChapterContent(book, chapterId, content) {
 }
 
 export function updateChapterTitle(book, chapterId, title) {
+  normalizeBook(book);
+
   const chapter = findChapterById(book, chapterId);
 
   if (!chapter) {
@@ -80,12 +113,87 @@ export function updateChapterTitle(book, chapterId, title) {
 }
 
 export function setActiveChapter(book, chapterId) {
+  normalizeBook(book);
+
+  book.activeItemType = "chapter";
   book.activeChapterId = chapterId;
   saveBook(book);
 }
 
+export function setActiveIntroduction(book) {
+  normalizeBook(book);
+
+  book.activeItemType = "introduction";
+  book.activeChapterId = null;
+  saveBook(book);
+}
+
 export function findChapterById(book, chapterId) {
+  normalizeBook(book);
+
   return book.chapters.find(function (chapter) {
     return chapter.id === chapterId;
   });
+}
+
+export function normalizeBook(book) {
+  if (!book) {
+    return book;
+  }
+
+  if (!book.id) {
+    book.id = crypto.randomUUID();
+  }
+
+  if (!book.title) {
+    book.title = "Enter Book Title";
+  }
+
+  if (!book.introduction) {
+    book.introduction = {
+      title: "Introduction",
+      content:
+        "Introduction\n\nWrite the introduction of your book here.\n\nThis page appears before Chapter 1 in the published TeachBooks book."
+    };
+  }
+
+  if (!book.introduction.title) {
+    book.introduction.title = "Introduction";
+  }
+
+  if (typeof book.introduction.content !== "string") {
+    book.introduction.content = "";
+  }
+
+  if (!Array.isArray(book.chapters)) {
+    book.chapters = [];
+  }
+
+  if (book.chapters.length === 0) {
+    book.chapters.push({
+      id: crypto.randomUUID(),
+      title: "Untitled Chapter",
+      content: ""
+    });
+  }
+
+  book.chapters.forEach(function (chapter, index) {
+    if (!chapter.id) {
+      chapter.id = crypto.randomUUID();
+    }
+
+    if (!chapter.title) {
+      chapter.title = "Chapter " + (index + 1);
+    }
+
+    if (typeof chapter.content !== "string") {
+      chapter.content = "";
+    }
+  });
+
+  if (!book.activeItemType) {
+    book.activeItemType = book.activeChapterId ? "chapter" : "introduction";
+  }
+
+  return book;
 }

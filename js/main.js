@@ -4,9 +4,12 @@ import {
   findChapterById,
   loadBook,
   setActiveChapter,
+  setActiveIntroduction,
   updateBookTitle,
   updateChapterContent,
-  updateChapterTitle
+  updateChapterTitle,
+  updateIntroductionContent,
+  updateIntroductionTitle
 } from "./bookStorage.js";
 
 import {
@@ -31,6 +34,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   let currentBook = loadBook();
   let activeChapter = null;
+  let activeEditorType = null;
 
   const views = [
     elements.homeView,
@@ -48,19 +52,30 @@ document.addEventListener("DOMContentLoaded", function () {
     elements.markdownOutput.textContent = markdown;
     elements.previewOutput.innerHTML = markdownToHtml(markdown, imagePreviewUrls);
 
-    saveActiveChapterContent();
+    saveActiveEditorContent();
   }
 
-  function saveActiveChapterContent() {
-    if (!currentBook || !activeChapter) {
+  function saveActiveEditorContent() {
+    if (!currentBook || !activeEditorType) {
       return;
     }
 
-    updateChapterContent(
-      currentBook,
-      activeChapter.id,
-      elements.plainTextInput.value
-    );
+    if (activeEditorType === "introduction") {
+      updateIntroductionContent(
+        currentBook,
+        elements.plainTextInput.value
+      );
+
+      return;
+    }
+
+    if (activeEditorType === "chapter" && activeChapter) {
+      updateChapterContent(
+        currentBook,
+        activeChapter.id,
+        elements.plainTextInput.value
+      );
+    }
   }
 
   function renderBookView() {
@@ -71,6 +86,21 @@ document.addEventListener("DOMContentLoaded", function () {
 
     elements.bookTitleInput.value = currentBook.title;
     elements.chapterList.innerHTML = "";
+
+    const introductionCard = document.createElement("button");
+    introductionCard.className = "chapter-card introduction-card";
+
+    introductionCard.innerHTML =
+      "<strong>Introduction</strong>" +
+      "<span>" +
+      escapeHtml(currentBook.introduction.title || "Introduction") +
+      "</span>";
+
+    introductionCard.addEventListener("click", function () {
+      openIntroduction();
+    });
+
+    elements.chapterList.appendChild(introductionCard);
 
     currentBook.chapters.forEach(function (chapter, index) {
       const chapterCard = document.createElement("button");
@@ -94,6 +124,27 @@ document.addEventListener("DOMContentLoaded", function () {
     showView(elements.bookView, views);
   }
 
+  function openIntroduction() {
+    if (!currentBook) {
+      return;
+    }
+
+    activeEditorType = "introduction";
+    activeChapter = null;
+
+    setActiveIntroduction(currentBook);
+
+    elements.chapterTitleInput.placeholder = "Introduction title";
+    elements.chapterTitleInput.value =
+      currentBook.introduction.title || "Introduction";
+
+    elements.plainTextInput.value = currentBook.introduction.content || "";
+
+    updateOutputs();
+    showView(elements.editorView, views);
+    setStatus("Introduction opened.");
+  }
+
   function openChapter(chapterId) {
     const chapter = findChapterById(currentBook, chapterId);
 
@@ -102,9 +153,12 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
+    activeEditorType = "chapter";
     activeChapter = chapter;
+
     setActiveChapter(currentBook, chapter.id);
 
+    elements.chapterTitleInput.placeholder = "Chapter title";
     elements.chapterTitleInput.value = chapter.title;
     elements.plainTextInput.value = chapter.content;
 
@@ -113,7 +167,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   async function publishRealBookPreview() {
-    saveActiveChapterContent();
+    saveActiveEditorContent();
 
     if (!currentBook) {
       setStatus("Create a book first.");
@@ -189,6 +243,7 @@ document.addEventListener("DOMContentLoaded", function () {
   elements.newBookButton.addEventListener("click", function () {
     currentBook = createNewBook();
     activeChapter = null;
+    activeEditorType = null;
 
     elements.publishResult.classList.add("hidden");
     renderBookView();
@@ -197,6 +252,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   elements.closeBookButton.addEventListener("click", function () {
     activeChapter = null;
+    activeEditorType = null;
     showView(elements.homeView, views);
   });
 
@@ -234,24 +290,39 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   elements.backToBookButton.addEventListener("click", function () {
-    saveActiveChapterContent();
+    saveActiveEditorContent();
     activeChapter = null;
+    activeEditorType = null;
     renderBookView();
   });
 
   elements.chapterTitleInput.addEventListener("input", function () {
-    if (!currentBook || !activeChapter) {
+    if (!currentBook || !activeEditorType) {
       return;
     }
 
-    updateChapterTitle(
-      currentBook,
-      activeChapter.id,
-      elements.chapterTitleInput.value
-    );
+    if (activeEditorType === "introduction") {
+      updateIntroductionTitle(
+        currentBook,
+        elements.chapterTitleInput.value
+      );
 
-    activeChapter.title =
-      elements.chapterTitleInput.value.trim() || "Untitled Chapter";
+      currentBook.introduction.title =
+        elements.chapterTitleInput.value.trim() || "Introduction";
+
+      return;
+    }
+
+    if (activeEditorType === "chapter" && activeChapter) {
+      updateChapterTitle(
+        currentBook,
+        activeChapter.id,
+        elements.chapterTitleInput.value
+      );
+
+      activeChapter.title =
+        elements.chapterTitleInput.value.trim() || "Untitled Chapter";
+    }
   });
 
   elements.plainTextInput.addEventListener("input", updateOutputs);
@@ -275,7 +346,7 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   elements.downloadButton.addEventListener("click", function () {
-    const filename = getChapterFileName();
+    const filename = getCurrentFileName();
     downloadMarkdown(elements.markdownOutput.textContent, setStatus, filename);
   });
 
@@ -294,14 +365,20 @@ document.addEventListener("DOMContentLoaded", function () {
   if (currentBook) {
     renderBookView();
 
-    if (currentBook.activeChapterId) {
+    if (currentBook.activeItemType === "introduction") {
+      openIntroduction();
+    } else if (currentBook.activeChapterId) {
       openChapter(currentBook.activeChapterId);
     }
   } else {
     showView(elements.homeView, views);
   }
 
-  function getChapterFileName() {
+  function getCurrentFileName() {
+    if (activeEditorType === "introduction") {
+      return "intro.md";
+    }
+
     if (!activeChapter) {
       return "chapter.md";
     }

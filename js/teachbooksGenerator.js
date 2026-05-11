@@ -143,23 +143,46 @@ ${chapterLines}
 }
 
 function generateIntro(book) {
-  const title = book.title || "Untitled Book";
+  const introduction = book.introduction || {
+    title: "Introduction",
+    content: ""
+  };
 
-  return `# ${title}
+  const introTitle = introduction.title || "Introduction";
+  const introContent = introduction.content || "";
 
-Welcome to **${title}**.
+  const markdown = plainTextToMarkdown(introContent).trim();
 
-This book was generated from the Plain Text to Markdown platform.
+  if (markdown.length === 0) {
+    return `# ${introTitle}
+
+Welcome to **${book.title || "Untitled Book"}**.
 
 Use the table of contents on the left to navigate through the chapters.
+`;
+  }
+
+  if (markdown.startsWith("#")) {
+    return markdown + "\n";
+  }
+
+  return `# ${introTitle}
+
+${markdown}
 `;
 }
 
 function generateChapterMarkdown(chapter, index) {
   const title = chapter.title || "Untitled Chapter";
-  const body = plainTextToMarkdown(chapter.content || "");
+  const body = plainTextToMarkdown(chapter.content || "").trim();
 
-  if (body.trim().startsWith("#")) {
+  if (body.length === 0) {
+    return `# ${title}
+
+`;
+  }
+
+  if (body.startsWith("#")) {
     return body + "\n";
   }
 
