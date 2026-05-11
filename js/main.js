@@ -3,6 +3,7 @@ import {
   createNewBook,
   findChapterById,
   loadBook,
+  removeChapter,
   setActiveChapter,
   setActiveIntroduction,
   updateBookTitle,
@@ -166,6 +167,73 @@ document.addEventListener("DOMContentLoaded", function () {
     showView(elements.editorView, views);
   }
 
+  function removeChapterFromBook() {
+    saveActiveEditorContent();
+
+    if (!currentBook) {
+      setStatus("Create a book first.");
+      return;
+    }
+
+    if (currentBook.chapters.length <= 1) {
+      setStatus("You must keep at least one chapter.");
+      return;
+    }
+
+    const chapterListText = currentBook.chapters
+      .map(function (chapter, index) {
+        return index + 1 + ". " + chapter.title;
+      })
+      .join("\n");
+
+    const answer = prompt(
+      "Which chapter number do you want to remove?\n\n" + chapterListText
+    );
+
+    if (!answer) {
+      return;
+    }
+
+    const chapterNumber = Number(answer.trim());
+
+    if (
+      !Number.isInteger(chapterNumber) ||
+      chapterNumber < 1 ||
+      chapterNumber > currentBook.chapters.length
+    ) {
+      setStatus("Invalid chapter number.");
+      return;
+    }
+
+    const chapterToRemove = currentBook.chapters[chapterNumber - 1];
+
+    const confirmed = confirm(
+      "Remove this chapter?\n\nChapter " +
+      chapterNumber +
+      ": " +
+      chapterToRemove.title
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const result = removeChapter(currentBook, chapterToRemove.id);
+
+    if (!result.success) {
+      setStatus(result.message);
+      return;
+    }
+
+    if (activeChapter && activeChapter.id === chapterToRemove.id) {
+      activeChapter = null;
+      activeEditorType = null;
+    }
+
+    renderBookView();
+    setStatus(result.message);
+  }
+
   async function publishRealBookPreview() {
     saveActiveEditorContent();
 
@@ -273,6 +341,8 @@ document.addEventListener("DOMContentLoaded", function () {
     renderBookView();
     setStatus(chapter.title + " added.");
   });
+
+  elements.removeChapterButton.addEventListener("click", removeChapterFromBook);
 
   elements.publishPreviewButton.addEventListener("click", publishRealBookPreview);
 

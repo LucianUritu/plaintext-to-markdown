@@ -65,6 +65,43 @@ export function addChapter(book) {
   return newChapter;
 }
 
+export function removeChapter(book, chapterId) {
+  normalizeBook(book);
+
+  if (book.chapters.length <= 1) {
+    return {
+      success: false,
+      message: "You must keep at least one chapter."
+    };
+  }
+
+  const chapterIndex = book.chapters.findIndex(function (chapter) {
+    return chapter.id === chapterId;
+  });
+
+  if (chapterIndex === -1) {
+    return {
+      success: false,
+      message: "Chapter not found."
+    };
+  }
+
+  const removedChapter = book.chapters.splice(chapterIndex, 1)[0];
+
+  if (book.activeChapterId === removedChapter.id) {
+    book.activeChapterId = null;
+    book.activeItemType = "introduction";
+  }
+
+  saveBook(book);
+
+  return {
+    success: true,
+    message: removedChapter.title + " removed.",
+    removedChapter
+  };
+}
+
 export function updateBookTitle(book, title) {
   normalizeBook(book);
 

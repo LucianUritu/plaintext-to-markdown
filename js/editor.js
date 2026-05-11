@@ -7,6 +7,7 @@ export function getEditorElements() {
     closeBookButton: document.getElementById("closeBookButton"),
     newBookButton: document.getElementById("newBookButton"),
     addChapterButton: document.getElementById("addChapterButton"),
+    removeChapterButton: document.getElementById("removeChapterButton"),
     publishPreviewButton: document.getElementById("publishPreviewButton"),
     backToBookButton: document.getElementById("backToBookButton"),
 
