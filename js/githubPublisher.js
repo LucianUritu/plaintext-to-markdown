@@ -15,27 +15,74 @@ export async function publishFilesToGitHub({
     throw new Error("Missing GitHub owner, repo, branch, or token.");
   }
 
-  await checkRepositoryAccess({
+  if (!Array.isArray(files) || files.length === 0) {
+    throw new Error("No files were provided for publishing.");
+  }
+
+  const repository = await checkRepositoryAccess({
+    owner,
+    repo,
+    token
+  });
+
+  const branchData = await getBranch({
     owner,
     repo,
     branch,
     token
   });
 
-  for (const file of files) {
-    await createOrUpdateFile({
-      owner,
-      repo,
-      branch,
-      token,
+  const latestCommitSha = branchData.commit.sha;
+  const latestCommit = await getCommit({
+    owner,
+    repo,
+    commitSha: latestCommitSha,
+    token
+  });
+
+  const baseTreeSha = latestCommit.tree.sha;
+
+  const treeItems = files.map(function (file) {
+    return {
       path: file.path,
-      content: file.content,
-      commitMessage
-    });
-  }
+      mode: "100644",
+      type: "blob",
+      content: file.content
+    };
+  });
+
+  const newTree = await createTree({
+    owner,
+    repo,
+    token,
+    baseTreeSha,
+    treeItems
+  });
+
+  const newCommit = await createCommit({
+    owner,
+    repo,
+    token,
+    message: commitMessage,
+    treeSha: newTree.sha,
+    parentCommitSha: latestCommitSha
+  });
+
+  await updateBranchReference({
+    owner,
+    repo,
+    branch,
+    token,
+    newCommitSha: newCommit.sha
+  });
+
+  return {
+    repository,
+    commit: newCommit
+  };
 }
 
-async function checkRepositoryAccess({ owner, repo, branch, token }) {
+async function checkRepositoryAccess({ owner, repo, token }) {
   const url =
     "https://api.github.com/repos/" +
     encodeURIComponent(owner) +
@@ -58,7 +105,11 @@ async function checkRepositoryAccess({ owner, repo, branch, token }) {
     );
   }
 
-  const branchUrl =
+  return response.json();
+}
+
+async function getBranch({ owner, repo, branch, token }) {
+  const url =
     "https://api.github.com/repos/" +
     encodeURIComponent(owner) +
     "/" +
@@ -66,13 +117,13 @@ async function checkRepositoryAccess({ owner, repo, branch, token }) {
     "/branches/" +
     encodeURIComponent(branch);
 
-  const branchResponse = await safeFetch(branchUrl, {
+  const response = await safeFetch(url, {
     method: "GET",
     headers: createGitHubHeaders(token)
   });
 
-  if (!branchResponse.ok) {
-    const errorText = await branchResponse.text();
+  if (!response.ok) {
+    const errorText = await response.text();
 
     throw new Error(
       "Could not access branch '" +
@@ -83,57 +134,29 @@ async function checkRepositoryAccess({ owner, repo, branch, token }) {
       errorText
     );
   }
+
+  return response.json();
 }
 
-async function createOrUpdateFile({
-  owner,
-  repo,
-  branch,
-  token,
-  path,
-  content,
-  commitMessage
-}) {
-  const existingFile = await getExistingFile({
-    owner,
-    repo,
-    branch,
-    token,
-    path
-  });
-
-  const body = {
-    message: commitMessage + ": " + path,
-    content: toBase64Unicode(content),
-    branch
-  };
-
-  if (existingFile && existingFile.sha) {
-    body.sha = existingFile.sha;
-  }
-
+async function getCommit({ owner, repo, commitSha, token }) {
   const url =
     "https://api.github.com/repos/" +
     encodeURIComponent(owner) +
     "/" +
     encodeURIComponent(repo) +
-    "/contents/" +
-    encodeURIComponentPath(path);
+    "/git/commits/" +
+    encodeURIComponent(commitSha);
 
   const response = await safeFetch(url, {
-    method: "PUT",
-    headers: createGitHubHeaders(token),
-    body: JSON.stringify(body)
+    method: "GET",
+    headers: createGitHubHeaders(token)
   });
 
   if (!response.ok) {
     const errorText = await response.text();
 
     throw new Error(
-      "GitHub upload failed for " +
-      path +
-      ".\n\n" +
-      "If this file is inside .github/workflows, your token needs Workflows: Read and write.\n\n" +
+      "Could not read latest commit.\n\n" +
       "GitHub response:\n" +
       errorText
     );
@@ -142,33 +165,105 @@ async function createOrUpdateFile({
   return response.json();
 }
 
-async function getExistingFile({ owner, repo, branch, token, path }) {
+async function createTree({ owner, repo, token, baseTreeSha, treeItems }) {
   const url =
     "https://api.github.com/repos/" +
     encodeURIComponent(owner) +
     "/" +
     encodeURIComponent(repo) +
-    "/contents/" +
-    encodeURIComponentPath(path) +
-    "?ref=" +
-    encodeURIComponent(branch);
+    "/git/trees";
 
   const response = await safeFetch(url, {
-    method: "GET",
-    headers: createGitHubHeaders(token)
+    method: "POST",
+    headers: createGitHubHeaders(token),
+    body: JSON.stringify({
+      base_tree: baseTreeSha,
+      tree: treeItems
+    })
   });
-
-  if (response.status === 404) {
-    return null;
-  }
 
   if (!response.ok) {
     const errorText = await response.text();
 
     throw new Error(
-      "Could not check existing file " +
-      path +
-      ".\n\n" +
+      "Could not create Git tree.\n\n" +
+      "If one of the files is inside .github/workflows, your token needs Workflows: Read and write.\n\n" +
+      "GitHub response:\n" +
+      errorText
+    );
+  }
+
+  return response.json();
+}
+
+async function createCommit({
+  owner,
+  repo,
+  token,
+  message,
+  treeSha,
+  parentCommitSha
+}) {
+  const url =
+    "https://api.github.com/repos/" +
+    encodeURIComponent(owner) +
+    "/" +
+    encodeURIComponent(repo) +
+    "/git/commits";
+
+  const response = await safeFetch(url, {
+    method: "POST",
+    headers: createGitHubHeaders(token),
+    body: JSON.stringify({
+      message,
+      tree: treeSha,
+      parents: [parentCommitSha]
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+
+    throw new Error(
+      "Could not create Git commit.\n\n" +
+      "GitHub response:\n" +
+      errorText
+    );
+  }
+
+  return response.json();
+}
+
+async function updateBranchReference({
+  owner,
+  repo,
+  branch,
+  token,
+  newCommitSha
+}) {
+  const url =
+    "https://api.github.com/repos/" +
+    encodeURIComponent(owner) +
+    "/" +
+    encodeURIComponent(repo) +
+    "/git/refs/heads/" +
+    encodeURIComponent(branch);
+
+  const response = await safeFetch(url, {
+    method: "PATCH",
+    headers: createGitHubHeaders(token),
+    body: JSON.stringify({
+      sha: newCommitSha,
+      force: false
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+
+    throw new Error(
+      "Could not update branch reference.\n\n" +
+      "This can happen if the branch changed while publishing. Try again.\n\n" +
       "GitHub response:\n" +
       errorText
     );
@@ -202,26 +297,6 @@ function createGitHubHeaders(token) {
     "Content-Type": "application/json",
     "X-GitHub-Api-Version": "2022-11-28"
   };
-}
-
-function encodeURIComponentPath(path) {
-  return path
-    .split("/")
-    .map(function (part) {
-      return encodeURIComponent(part);
-    })
-    .join("/");
-}
-
-function toBase64Unicode(text) {
-  const utf8Bytes = new TextEncoder().encode(text);
-  let binary = "";
-
-  utf8Bytes.forEach(function (byte) {
-    binary += String.fromCharCode(byte);
-  });
-
-  return btoa(binary);
 }
 
 function cleanInput(value) {

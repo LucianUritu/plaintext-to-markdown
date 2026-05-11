@@ -67,6 +67,10 @@ on:
     - .github/workflows/call-deploy-book.yml
   workflow_dispatch:
 
+concurrency:
+  group: pages-\${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   call-workflow:
     uses: TeachBooks/deploy-book-workflow/.github/workflows/deploy-book.yml@v1
