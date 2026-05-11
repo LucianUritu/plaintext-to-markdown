@@ -7,9 +7,9 @@ export function getEditorElements() {
     closeBookButton: document.getElementById("closeBookButton"),
     newBookButton: document.getElementById("newBookButton"),
     addChapterButton: document.getElementById("addChapterButton"),
+    publishPreviewButton: document.getElementById("publishPreviewButton"),
     backToBookButton: document.getElementById("backToBookButton"),
-    
-    
+
     bookTitleInput: document.getElementById("bookTitleInput"),
     chapterList: document.getElementById("chapterList"),
     chapterTitleInput: document.getElementById("chapterTitleInput"),
@@ -37,7 +37,7 @@ export function showView(viewToShow, allViews) {
   viewToShow.classList.remove("hidden");
 }
 
-export function showStatus(statusElement, message, duration = 2500) {
+export function showStatus(statusElement, message, duration = 4000) {
   statusElement.textContent = message;
 
   setTimeout(function () {

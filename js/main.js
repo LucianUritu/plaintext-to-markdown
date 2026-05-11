@@ -3,7 +3,6 @@ import {
   createNewBook,
   findChapterById,
   loadBook,
-  saveBook,
   setActiveChapter,
   updateBookTitle,
   updateChapterContent,
@@ -22,6 +21,9 @@ import { setupImageHandler } from "./imageHandler.js";
 import { plainTextToMarkdown } from "./markdownConverter.js";
 import { markdownToHtml } from "./markdownRenderer.js";
 import { setupEditorShortcuts } from "./shortcuts.js";
+import { escapeHtml } from "./utils.js";
+import { generateTeachBooksFiles } from "./teachbooksGenerator.js";
+import { publishFilesToGitHub } from "./githubPublisher.js";
 
 document.addEventListener("DOMContentLoaded", function () {
   const elements = getEditorElements();
@@ -110,6 +112,71 @@ document.addEventListener("DOMContentLoaded", function () {
     showView(elements.editorView, views);
   }
 
+  async function publishRealBookPreview() {
+    saveActiveChapterContent();
+
+    if (!currentBook) {
+      setStatus("Create a book first.");
+      return;
+    }
+
+    const owner = prompt("GitHub username or organization:");
+    if (!owner) {
+      return;
+    }
+
+    const repo = prompt("GitHub repository name:");
+    if (!repo) {
+      return;
+    }
+
+    const branch = prompt("Branch:", "main") || "main";
+
+    const token = prompt(
+      "GitHub token with repo access. For this prototype only. Later this should use OAuth/backend."
+    );
+
+    if (!token) {
+      return;
+    }
+
+    const files = generateTeachBooksFiles(currentBook, {
+      owner,
+      repo,
+      branch
+    });
+
+    try {
+      setStatus("Uploading TeachBooks files to GitHub...");
+
+      await publishFilesToGitHub({
+        owner,
+        repo,
+        branch,
+        token,
+        files,
+        commitMessage: "Update real TeachBooks preview"
+      });
+
+      const pagesUrl = "https://" + owner + ".github.io/" + repo + "/";
+
+      setStatus("Uploaded. GitHub Actions is building the real book preview.");
+
+      alert(
+        "Files uploaded successfully.\n\n" +
+        "GitHub Actions will now build the real TeachBooks book.\n\n" +
+        "Open this URL after 1–3 minutes:\n" +
+        pagesUrl
+      );
+
+      window.open(pagesUrl, "_blank");
+    } catch (error) {
+      console.error(error);
+      setStatus("Publish failed. Check the browser console.");
+      alert(error.message);
+    }
+  }
+
   elements.newBookButton.addEventListener("click", function () {
     currentBook = createNewBook();
     activeChapter = null;
@@ -141,6 +208,8 @@ document.addEventListener("DOMContentLoaded", function () {
     setStatus(chapter.title + " added.");
   });
 
+  elements.publishPreviewButton.addEventListener("click", publishRealBookPreview);
+
   elements.backToBookButton.addEventListener("click", function () {
     saveActiveChapterContent();
     activeChapter = null;
@@ -158,7 +227,8 @@ document.addEventListener("DOMContentLoaded", function () {
       elements.chapterTitleInput.value
     );
 
-    activeChapter.title = elements.chapterTitleInput.value.trim() || "Untitled Chapter";
+    activeChapter.title =
+      elements.chapterTitleInput.value.trim() || "Untitled Chapter";
   });
 
   elements.plainTextInput.addEventListener("input", updateOutputs);
@@ -223,13 +293,4 @@ function makeSlug(text) {
     .trim()
     .replace(/\s+/g, "-")
     .replace(/[^a-z0-9._-]/g, "");
-}
-
-function escapeHtml(text) {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
 }
