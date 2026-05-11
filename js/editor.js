@@ -25,7 +25,12 @@ export function getEditorElements() {
     clearButton: document.getElementById("clearButton"),
 
     imageInput: document.getElementById("imageInput"),
-    imageAltInput: document.getElementById("imageAltInput")
+    imageAltInput: document.getElementById("imageAltInput"),
+
+    publishResult: document.getElementById("publishResult"),
+    publishedUrlInput: document.getElementById("publishedUrlInput"),
+    copyPublishedUrlButton: document.getElementById("copyPublishedUrlButton"),
+    openPublishedUrlLink: document.getElementById("openPublishedUrlLink")
   };
 }
 

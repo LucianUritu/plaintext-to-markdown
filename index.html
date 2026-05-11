@@ -99,6 +99,19 @@
         </section>
       </div>
     </section>
+    <div id="publishResult" class="publish-result hidden">
+    <p>Files uploaded successfully. GitHub Actions is building the real TeachBooks book.</p>
+
+    <label for="publishedUrlInput">Preview URL</label>
+
+    <div class="publish-url-row">
+      <input id="publishedUrlInput" type="text" readonly />
+      <button id="copyPublishedUrlButton" type="button">Copy URL</button>
+      <a id="openPublishedUrlLink" href="#" target="_blank" rel="noopener noreferrer">
+        Open
+      </a>
+    </div>
+  </div>
 
     <p id="status" class="status"></p>
   </main>

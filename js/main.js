@@ -121,12 +121,12 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     const owner = prompt("GitHub username or organization:");
-    if (!owner) {
+    if (!owner || !owner.trim()) {
       return;
     }
 
     const repo = prompt("GitHub repository name:");
-    if (!repo) {
+    if (!repo || !repo.trim()) {
       return;
     }
 
@@ -136,40 +136,38 @@ document.addEventListener("DOMContentLoaded", function () {
       "GitHub token with repo access. For this prototype only. Later this should use OAuth/backend."
     );
 
-    if (!token) {
+    if (!token || !token.trim()) {
       return;
     }
 
+    const cleanOwner = owner.trim();
+    const cleanRepo = repo.trim();
+    const cleanBranch = branch.trim() || "main";
+    const cleanToken = token.trim();
+
     const files = generateTeachBooksFiles(currentBook, {
-      owner,
-      repo,
-      branch
+      owner: cleanOwner,
+      repo: cleanRepo,
+      branch: cleanBranch
     });
 
     try {
       setStatus("Uploading TeachBooks files to GitHub...");
 
       await publishFilesToGitHub({
-        owner,
-        repo,
-        branch,
-        token,
+        owner: cleanOwner,
+        repo: cleanRepo,
+        branch: cleanBranch,
+        token: cleanToken,
         files,
         commitMessage: "Update real TeachBooks preview"
       });
 
-      const pagesUrl = "https://" + owner + ".github.io/" + repo + "/";
+      const pagesUrl = "https://" + cleanOwner + ".github.io/" + cleanRepo + "/";
 
-      setStatus("Uploaded. GitHub Actions is building the real book preview.");
+      setStatus("Files uploaded. GitHub Actions is building the real book preview.");
 
-      alert(
-        "Files uploaded successfully.\n\n" +
-        "GitHub Actions will now build the real TeachBooks book.\n\n" +
-        "Open this URL after 1–3 minutes:\n" +
-        pagesUrl
-      );
-
-      window.open(pagesUrl, "_blank");
+      showPublishResult(pagesUrl);
     } catch (error) {
       console.error(error);
       setStatus("Publish failed. Check the browser console.");
@@ -177,10 +175,22 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
+  function showPublishResult(pagesUrl) {
+    elements.publishResult.classList.remove("hidden");
+    elements.publishedUrlInput.value = pagesUrl;
+    elements.openPublishedUrlLink.href = pagesUrl;
+
+    elements.publishedUrlInput.focus();
+    elements.publishedUrlInput.select();
+
+    setStatus("Files uploaded. Copy or open the preview URL below.");
+  }
+
   elements.newBookButton.addEventListener("click", function () {
     currentBook = createNewBook();
     activeChapter = null;
 
+    elements.publishResult.classList.add("hidden");
     renderBookView();
     setStatus("New book created.");
   });
@@ -209,6 +219,19 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   elements.publishPreviewButton.addEventListener("click", publishRealBookPreview);
+
+  elements.copyPublishedUrlButton.addEventListener("click", async function () {
+    const url = elements.publishedUrlInput.value;
+
+    try {
+      await navigator.clipboard.writeText(url);
+      setStatus("Preview URL copied.");
+    } catch (error) {
+      elements.publishedUrlInput.focus();
+      elements.publishedUrlInput.select();
+      setStatus("URL selected. Press Ctrl+C to copy.");
+    }
+  });
 
   elements.backToBookButton.addEventListener("click", function () {
     saveActiveChapterContent();

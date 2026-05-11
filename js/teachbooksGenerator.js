@@ -79,7 +79,8 @@ jobs:
 }
 
 function generateConfig({ title, owner, repo, branch }) {
-  return `author: Generated with Plain Text to Markdown Converter
+  return `title: ${quoteYaml(title)}
+author: Generated with Plain Text to Markdown Converter
 
 execute:
   execute_notebooks: "off"
