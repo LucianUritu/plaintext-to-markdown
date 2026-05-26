@@ -32,6 +32,20 @@
 
         <button id="newBookButton">New Book</button>
       </div>
+
+      <div id="githubBooksPanel" class="github-books-panel hidden">
+        <div class="github-books-header">
+          <div>
+            <h2>GitHub Books</h2>
+            <p>Repositories detected as TeachBooks projects.</p>
+          </div>
+          <button id="refreshGithubBooksButton" type="button" class="secondary">
+            Refresh
+          </button>
+        </div>
+
+        <div id="githubBooksList" class="github-books-list"></div>
+      </div>
     </section>
 
     <section id="bookView" class="app-view hidden">

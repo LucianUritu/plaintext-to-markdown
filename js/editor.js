@@ -8,6 +8,9 @@ export function getEditorElements() {
     githubAuthSummary: document.getElementById("githubAuthSummary"),
     githubLoginButton: document.getElementById("githubLoginButton"),
     githubLogoutButton: document.getElementById("githubLogoutButton"),
+    githubBooksPanel: document.getElementById("githubBooksPanel"),
+    githubBooksList: document.getElementById("githubBooksList"),
+    refreshGithubBooksButton: document.getElementById("refreshGithubBooksButton"),
 
     closeBookButton: document.getElementById("closeBookButton"),
     newBookButton: document.getElementById("newBookButton"),

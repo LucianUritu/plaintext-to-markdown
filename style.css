@@ -222,6 +222,76 @@ pre {
   line-height: 1.6;
 }
 
+.github-books-panel {
+  max-width: 880px;
+  margin: 24px auto 0;
+  padding: 22px;
+  background: white;
+  border-radius: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.github-books-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.github-books-header h2 {
+  margin: 0 0 4px;
+  font-size: 22px;
+}
+
+.github-books-header p,
+.github-books-message {
+  margin: 0;
+  color: #4b5563;
+}
+
+.github-books-list {
+  display: grid;
+  gap: 12px;
+}
+
+.github-book-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+}
+
+.github-book-card h3 {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+
+.github-book-card p {
+  margin: 0;
+  color: #6b7280;
+}
+
+.github-book-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.github-book-actions a {
+  padding: 8px 10px;
+  background: #2563eb;
+  color: white;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
 /* Book overview */
 
 .book-header {
@@ -405,6 +475,8 @@ pre {
   header,
   .book-header,
   .book-actions,
+  .github-books-header,
+  .github-book-card,
   .editor-topbar,
   .publish-url-row {
     flex-direction: column;

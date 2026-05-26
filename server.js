@@ -50,6 +50,11 @@ const server = http.createServer(async function (request, response) {
       return;
     }
 
+    if (url.pathname === "/api/books") {
+      await getGitHubBooks(request, response);
+      return;
+    }
+
     serveStaticFile(url.pathname, response);
   } catch (error) {
     console.error(error);
@@ -168,6 +173,179 @@ async function getCurrentUser(request, response) {
     profileUrl: user.html_url,
     scope: session.githubScope
   });
+}
+
+async function getGitHubBooks(request, response) {
+  const session = getSessionFromRequest(request);
+
+  if (!session || !session.githubAccessToken) {
+    sendJson(response, 401, {
+      error: "Sign in with GitHub first."
+    });
+    return;
+  }
+
+  const repos = await fetchGitHubRepos(session.githubAccessToken);
+
+  if (!Array.isArray(repos)) {
+    sendJson(response, 502, {
+      error: "Could not read GitHub repositories."
+    });
+    return;
+  }
+
+  const books = [];
+
+  for (const repo of repos) {
+    const book = await detectTeachBookRepository(repo, session.githubAccessToken);
+
+    if (book) {
+      books.push(book);
+    }
+  }
+
+  sendJson(response, 200, {
+    books
+  });
+}
+
+async function fetchGitHubRepos(token) {
+  const repos = [];
+  let page = 1;
+
+  while (page <= 10) {
+    const pageRepos = await fetchGitHubJson(
+      "https://api.github.com/user/repos?per_page=100&sort=updated&affiliation=owner,collaborator,organization_member&page=" +
+        page,
+      token
+    );
+
+    if (!Array.isArray(pageRepos)) {
+      return null;
+    }
+
+    repos.push(...pageRepos);
+
+    if (pageRepos.length < 100) {
+      break;
+    }
+
+    page += 1;
+  }
+
+  return repos;
+}
+
+async function detectTeachBookRepository(repo, token) {
+  const owner = repo.owner && repo.owner.login;
+  const repoName = repo.name;
+  const branch = repo.default_branch || "main";
+
+  if (!owner || !repoName) {
+    return null;
+  }
+
+  const requiredFiles = await Promise.all([
+    fetchRepositoryFile({
+      owner,
+      repo: repoName,
+      branch,
+      path: "book/_config.yml",
+      token
+    }),
+    fetchRepositoryFile({
+      owner,
+      repo: repoName,
+      branch,
+      path: "book/_toc.yml",
+      token
+    }),
+    fetchRepositoryFile({
+      owner,
+      repo: repoName,
+      branch,
+      path: "book/intro.md",
+      token
+    })
+  ]);
+
+  if (requiredFiles.some(function (file) { return !file; })) {
+    return null;
+  }
+
+  const configText = decodeBase64Text(requiredFiles[0].content);
+  const title = readYamlTitle(configText) || repoName;
+
+  return {
+    id: owner + "/" + repoName,
+    owner,
+    repo: repoName,
+    title,
+    branch,
+    private: Boolean(repo.private),
+    updatedAt: repo.updated_at,
+    repoUrl: repo.html_url,
+    pagesUrl: "https://" + owner + ".github.io/" + repoName + "/"
+  };
+}
+
+async function fetchRepositoryFile({ owner, repo, branch, path: filePath, token }) {
+  const url =
+    "https://api.github.com/repos/" +
+    encodeURIComponent(owner) +
+    "/" +
+    encodeURIComponent(repo) +
+    "/contents/" +
+    filePath
+      .split("/")
+      .map(encodeURIComponent)
+      .join("/") +
+    "?ref=" +
+    encodeURIComponent(branch);
+
+  const response = await fetch(url, {
+    headers: createGitHubApiHeaders(token)
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  return response.json();
+}
+
+async function fetchGitHubJson(url, token) {
+  const response = await fetch(url, {
+    headers: createGitHubApiHeaders(token)
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  return response.json();
+}
+
+function createGitHubApiHeaders(token) {
+  return {
+    Authorization: "Bearer " + token,
+    Accept: "application/vnd.github+json",
+    "X-GitHub-Api-Version": "2022-11-28"
+  };
+}
+
+function decodeBase64Text(content) {
+  return Buffer.from(String(content || "").replace(/\s/g, ""), "base64").toString("utf8");
+}
+
+function readYamlTitle(configText) {
+  const match = String(configText || "").match(/^title:\s*(.+)$/m);
+
+  if (!match) {
+    return "";
+  }
+
+  return match[1].trim().replace(/^["']|["']$/g, "");
 }
 
 function logout(request, response) {

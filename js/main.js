@@ -71,6 +71,8 @@ document.addEventListener("DOMContentLoaded", function () {
       elements.githubAuthSummary.textContent = "GitHub not connected";
       elements.githubLoginButton.classList.remove("hidden");
       elements.githubLogoutButton.classList.add("hidden");
+      elements.githubBooksPanel.classList.add("hidden");
+      elements.githubBooksList.innerHTML = "";
       return;
     }
 
@@ -79,6 +81,70 @@ document.addEventListener("DOMContentLoaded", function () {
     elements.githubAuthSummary.textContent = "Signed in as " + displayName;
     elements.githubLoginButton.classList.add("hidden");
     elements.githubLogoutButton.classList.remove("hidden");
+    elements.githubBooksPanel.classList.remove("hidden");
+    loadGitHubBooks();
+  }
+
+  async function loadGitHubBooks() {
+    elements.githubBooksList.innerHTML =
+      '<p class="github-books-message">Scanning GitHub repositories...</p>';
+
+    try {
+      const response = await fetch("/api/books");
+
+      if (!response.ok) {
+        throw new Error("Could not load GitHub books.");
+      }
+
+      const result = await response.json();
+      renderGitHubBooks(result.books || []);
+    } catch (error) {
+      elements.githubBooksList.innerHTML =
+        '<p class="github-books-message">Could not load GitHub books.</p>';
+    }
+  }
+
+  function renderGitHubBooks(books) {
+    if (books.length === 0) {
+      elements.githubBooksList.innerHTML =
+        '<p class="github-books-message">No TeachBooks repositories found yet.</p>';
+      return;
+    }
+
+    elements.githubBooksList.innerHTML = "";
+
+    books.forEach(function (book) {
+      const bookCard = document.createElement("article");
+      bookCard.className = "github-book-card";
+
+      const updatedDate = book.updatedAt
+        ? new Date(book.updatedAt).toLocaleDateString()
+        : "Unknown";
+
+      bookCard.innerHTML =
+        "<div>" +
+        "<h3>" +
+        escapeHtml(book.title) +
+        "</h3>" +
+        "<p>" +
+        escapeHtml(book.owner + "/" + book.repo) +
+        " · " +
+        escapeHtml(book.private ? "Private" : "Public") +
+        " · Updated " +
+        escapeHtml(updatedDate) +
+        "</p>" +
+        "</div>" +
+        '<div class="github-book-actions">' +
+        '<a href="' +
+        escapeHtml(book.repoUrl) +
+        '" target="_blank" rel="noopener noreferrer">Repo</a>' +
+        '<a href="' +
+        escapeHtml(book.pagesUrl) +
+        '" target="_blank" rel="noopener noreferrer">Published</a>' +
+        "</div>";
+
+      elements.githubBooksList.appendChild(bookCard);
+    });
   }
 
   async function logoutFromGitHub() {
@@ -457,6 +523,7 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   elements.githubLogoutButton.addEventListener("click", logoutFromGitHub);
+  elements.refreshGithubBooksButton.addEventListener("click", loadGitHubBooks);
 
   elements.copyPublishedUrlButton.addEventListener("click", async function () {
     const url = elements.publishedUrlInput.value;
