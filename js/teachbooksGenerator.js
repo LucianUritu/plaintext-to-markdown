@@ -45,6 +45,10 @@ export function generateTeachBooksFiles(book, options = {}) {
     });
   });
 
+  getBookImageFiles(book).forEach(function (imageFile) {
+    files.push(imageFile);
+  });
+
   return files;
 }
 
@@ -214,6 +218,80 @@ function slugify(text) {
 
 function removeExtension(fileName) {
   return fileName.replace(/\.md$/, "");
+}
+
+function getBookImageFiles(book) {
+  if (!Array.isArray(book.images)) {
+    return [];
+  }
+
+  const imageFiles = [];
+
+  book.images.forEach(function (image) {
+    const parsedImage = parseDataUrl(image.dataUrl);
+
+    if (!image.path || !parsedImage) {
+      return;
+    }
+
+    const relativePath = normalizeImagePath(image.path);
+
+    if (!relativePath) {
+      return;
+    }
+
+    imageFiles.push({
+      path: "book/" + relativePath,
+      content: parsedImage.base64,
+      encoding: "base64"
+    });
+
+    imageFiles.push({
+      path: "book/chapters/" + relativePath,
+      content: parsedImage.base64,
+      encoding: "base64"
+    });
+  });
+
+  return imageFiles;
+}
+
+function parseDataUrl(dataUrl) {
+  const match = String(dataUrl || "").match(/^data:[^;]+;base64,(.+)$/);
+
+  if (!match) {
+    return null;
+  }
+
+  return {
+    base64: match[1]
+  };
+}
+
+function normalizeImagePath(path) {
+  const normalizedPath = String(path || "").replace(/\\/g, "/");
+
+  if (
+    !normalizedPath ||
+    normalizedPath.startsWith("/") ||
+    normalizedPath.includes("../")
+  ) {
+    return "";
+  }
+
+  return normalizedPath
+    .split("/")
+    .map(slugifyPathPart)
+    .filter(Boolean)
+    .join("/");
+}
+
+function slugifyPathPart(pathPart) {
+  return String(pathPart || "")
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9._-]/g, "");
 }
 
 function quoteYaml(value) {

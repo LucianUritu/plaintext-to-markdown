@@ -28,6 +28,7 @@ export function createNewBook() {
   const book = {
     id: crypto.randomUUID(),
     title: "Enter Book Title",
+    images: [],
     introduction: {
       title: "Introduction",
       content:
@@ -149,6 +150,33 @@ export function updateChapterTitle(book, chapterId, title) {
   saveBook(book);
 }
 
+export function upsertBookImage(book, image) {
+  normalizeBook(book);
+
+  if (!image || !image.path || !image.dataUrl) {
+    return;
+  }
+
+  const existingIndex = book.images.findIndex(function (bookImage) {
+    return bookImage.path === image.path;
+  });
+
+  const savedImage = {
+    path: image.path,
+    name: image.name || image.path.split("/").pop(),
+    type: image.type || "application/octet-stream",
+    dataUrl: image.dataUrl
+  };
+
+  if (existingIndex === -1) {
+    book.images.push(savedImage);
+  } else {
+    book.images[existingIndex] = savedImage;
+  }
+
+  saveBook(book);
+}
+
 export function setActiveChapter(book, chapterId) {
   normalizeBook(book);
 
@@ -185,6 +213,14 @@ export function normalizeBook(book) {
   if (!book.title) {
     book.title = "Enter Book Title";
   }
+
+  if (!Array.isArray(book.images)) {
+    book.images = [];
+  }
+
+  book.images = book.images.filter(function (image) {
+    return image && image.path && image.dataUrl;
+  });
 
   if (!book.introduction) {
     book.introduction = {

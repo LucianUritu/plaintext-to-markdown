@@ -6,6 +6,8 @@ export function setupImageHandler(options) {
     imageAltInput,
     plainTextInput,
     imagePreviewUrls,
+    saveImage,
+    createImagePath,
     updateOutputs,
     showStatus
   } = options;
@@ -17,6 +19,8 @@ export function setupImageHandler(options) {
       imageAltInput,
       plainTextInput,
       imagePreviewUrls,
+      saveImage,
+      createImagePath,
       updateOutputs,
       showStatus
     });
@@ -30,6 +34,8 @@ function handleImageInput(options) {
     imageAltInput,
     plainTextInput,
     imagePreviewUrls,
+    saveImage,
+    createImagePath,
     updateOutputs,
     showStatus
   } = options;
@@ -46,21 +52,59 @@ function handleImageInput(options) {
   }
 
   const safeFileName = makeSafeFileName(file.name);
-  const markdownPath = "images/" + safeFileName;
-  const previewUrl = URL.createObjectURL(file);
+  const markdownPath =
+    typeof createImagePath === "function"
+      ? createImagePath(safeFileName)
+      : "images/" + safeFileName;
 
-  imagePreviewUrls[markdownPath] = previewUrl;
+  if (!markdownPath) {
+    showStatus("Could not create a safe image filename.");
+    return;
+  }
 
-  const altText =
-    imageAltInput.value.trim() || file.name.replace(/\.[^/.]+$/, "");
+  readFileAsDataUrl(file)
+    .then(function (dataUrl) {
+      imagePreviewUrls[markdownPath] = dataUrl;
 
-  const imageMarkdown = "![" + altText + "](" + markdownPath + ")";
+      if (typeof saveImage === "function") {
+        saveImage({
+          path: markdownPath,
+          name: markdownPath.split("/").pop(),
+          type: file.type,
+          dataUrl
+        });
+      }
 
-  insertTextAtCursor(plainTextInput, "\n\n" + imageMarkdown + "\n\n");
+      const altText =
+        imageAltInput.value.trim() || file.name.replace(/\.[^/.]+$/, "");
 
-  imageInput.value = "";
-  imageAltInput.value = "";
+      const imageMarkdown = "![" + altText + "](" + markdownPath + ")";
 
-  updateOutputs();
-  showStatus("Image inserted into Markdown.");
+      insertTextAtCursor(plainTextInput, "\n\n" + imageMarkdown + "\n\n");
+
+      imageInput.value = "";
+      imageAltInput.value = "";
+
+      updateOutputs();
+      showStatus("Image inserted into Markdown and saved with this book.");
+    })
+    .catch(function () {
+      showStatus("Could not read the selected image.");
+    });
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise(function (resolve, reject) {
+    const reader = new FileReader();
+
+    reader.addEventListener("load", function () {
+      resolve(reader.result);
+    });
+
+    reader.addEventListener("error", function () {
+      reject(reader.error);
+    });
+
+    reader.readAsDataURL(file);
+  });
 }

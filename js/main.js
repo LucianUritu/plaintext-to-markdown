@@ -10,7 +10,8 @@ import {
   updateChapterContent,
   updateChapterTitle,
   updateIntroductionContent,
-  updateIntroductionTitle
+  updateIntroductionTitle,
+  upsertBookImage
 } from "./bookStorage.js";
 
 import {
@@ -48,6 +49,8 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function updateOutputs() {
+    refreshImagePreviewUrls();
+
     const markdown = plainTextToMarkdown(elements.plainTextInput.value);
 
     elements.markdownOutput.textContent = markdown;
@@ -77,6 +80,57 @@ document.addEventListener("DOMContentLoaded", function () {
         elements.plainTextInput.value
       );
     }
+  }
+
+  function refreshImagePreviewUrls() {
+    if (!currentBook || !Array.isArray(currentBook.images)) {
+      return;
+    }
+
+    currentBook.images.forEach(function (image) {
+      imagePreviewUrls[image.path] = image.dataUrl;
+    });
+  }
+
+  function saveImageToCurrentBook(image) {
+    if (!currentBook) {
+      return;
+    }
+
+    upsertBookImage(currentBook, image);
+    imagePreviewUrls[image.path] = image.dataUrl;
+  }
+
+  function createUniqueImagePath(fileName) {
+    const cleanFileName = fileName || "image";
+    const existingPaths = new Set();
+
+    if (currentBook && Array.isArray(currentBook.images)) {
+      currentBook.images.forEach(function (image) {
+        existingPaths.add(image.path);
+      });
+    }
+
+    let candidatePath = "images/" + cleanFileName;
+
+    if (!existingPaths.has(candidatePath)) {
+      return candidatePath;
+    }
+
+    const extensionMatch = cleanFileName.match(/(\.[a-z0-9]+)$/i);
+    const extension = extensionMatch ? extensionMatch[1] : "";
+    const baseName = extension
+      ? cleanFileName.slice(0, -extension.length)
+      : cleanFileName;
+
+    let counter = 2;
+
+    while (existingPaths.has(candidatePath)) {
+      candidatePath = "images/" + baseName + "-" + counter + extension;
+      counter += 1;
+    }
+
+    return candidatePath;
   }
 
   function renderBookView() {
@@ -312,6 +366,9 @@ document.addEventListener("DOMContentLoaded", function () {
     currentBook = createNewBook();
     activeChapter = null;
     activeEditorType = null;
+    Object.keys(imagePreviewUrls).forEach(function (path) {
+      delete imagePreviewUrls[path];
+    });
 
     elements.publishResult.classList.add("hidden");
     renderBookView();
@@ -407,6 +464,8 @@ document.addEventListener("DOMContentLoaded", function () {
     imageAltInput: elements.imageAltInput,
     plainTextInput: elements.plainTextInput,
     imagePreviewUrls,
+    saveImage: saveImageToCurrentBook,
+    createImagePath: createUniqueImagePath,
     updateOutputs,
     showStatus: setStatus
   });

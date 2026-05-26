@@ -42,13 +42,11 @@ export async function publishFilesToGitHub({
 
   const baseTreeSha = latestCommit.tree.sha;
 
-  const treeItems = files.map(function (file) {
-    return {
-      path: file.path,
-      mode: "100644",
-      type: "blob",
-      content: file.content
-    };
+  const treeItems = await createTreeItems({
+    owner,
+    repo,
+    token,
+    files
   });
 
   const newTree = await createTree({
@@ -80,6 +78,36 @@ export async function publishFilesToGitHub({
     repository,
     commit: newCommit
   };
+}
+
+async function createTreeItems({ owner, repo, token, files }) {
+  const treeItems = [];
+
+  for (const file of files) {
+    const treeItem = {
+      path: file.path,
+      mode: "100644",
+      type: "blob"
+    };
+
+    if (file.encoding === "base64") {
+      const blob = await createBlob({
+        owner,
+        repo,
+        token,
+        content: file.content,
+        encoding: "base64"
+      });
+
+      treeItem.sha = blob.sha;
+    } else {
+      treeItem.content = file.content;
+    }
+
+    treeItems.push(treeItem);
+  }
+
+  return treeItems;
 }
 
 async function checkRepositoryAccess({ owner, repo, token }) {
@@ -188,6 +216,36 @@ async function createTree({ owner, repo, token, baseTreeSha, treeItems }) {
     throw new Error(
       "Could not create Git tree.\n\n" +
       "If one of the files is inside .github/workflows, your token needs Workflows: Read and write.\n\n" +
+      "GitHub response:\n" +
+      errorText
+    );
+  }
+
+  return response.json();
+}
+
+async function createBlob({ owner, repo, token, content, encoding }) {
+  const url =
+    "https://api.github.com/repos/" +
+    encodeURIComponent(owner) +
+    "/" +
+    encodeURIComponent(repo) +
+    "/git/blobs";
+
+  const response = await safeFetch(url, {
+    method: "POST",
+    headers: createGitHubHeaders(token),
+    body: JSON.stringify({
+      content,
+      encoding
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+
+    throw new Error(
+      "Could not upload image blob.\n\n" +
       "GitHub response:\n" +
       errorText
     );
