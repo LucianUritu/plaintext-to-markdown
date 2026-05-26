@@ -55,6 +55,11 @@ const server = http.createServer(async function (request, response) {
       return;
     }
 
+    if (url.pathname.startsWith("/api/books/")) {
+      await getGitHubBook(request, response, url);
+      return;
+    }
+
     serveStaticFile(url.pathname, response);
   } catch (error) {
     console.error(error);
@@ -209,6 +214,116 @@ async function getGitHubBooks(request, response) {
   });
 }
 
+async function getGitHubBook(request, response, url) {
+  const session = getSessionFromRequest(request);
+
+  if (!session || !session.githubAccessToken) {
+    sendJson(response, 401, {
+      error: "Sign in with GitHub first."
+    });
+    return;
+  }
+
+  const pathParts = url.pathname.split("/").filter(Boolean);
+  const owner = pathParts[2];
+  const repoName = pathParts[3];
+  const branch = url.searchParams.get("branch") || "main";
+
+  if (!owner || !repoName) {
+    sendJson(response, 400, {
+      error: "Missing owner or repository name."
+    });
+    return;
+  }
+
+  const [configFile, tocFile, introFile] = await Promise.all([
+    fetchRepositoryFile({
+      owner,
+      repo: repoName,
+      branch,
+      path: "book/_config.yml",
+      token: session.githubAccessToken
+    }),
+    fetchRepositoryFile({
+      owner,
+      repo: repoName,
+      branch,
+      path: "book/_toc.yml",
+      token: session.githubAccessToken
+    }),
+    fetchRepositoryFile({
+      owner,
+      repo: repoName,
+      branch,
+      path: "book/intro.md",
+      token: session.githubAccessToken
+    })
+  ]);
+
+  if (!configFile || !tocFile || !introFile) {
+    sendJson(response, 404, {
+      error: "This repository does not look like a TeachBooks project."
+    });
+    return;
+  }
+
+  const configText = decodeBase64Text(configFile.content);
+  const tocText = decodeBase64Text(tocFile.content);
+  const introMarkdown = decodeBase64Text(introFile.content);
+  const chapterPaths = readChapterPathsFromToc(tocText);
+  const chapters = [];
+
+  for (let index = 0; index < chapterPaths.length; index += 1) {
+    const chapterPath = chapterPaths[index];
+    const chapterFile = await fetchRepositoryFile({
+      owner,
+      repo: repoName,
+      branch,
+      path: "book/" + chapterPath,
+      token: session.githubAccessToken
+    });
+
+    if (!chapterFile) {
+      continue;
+    }
+
+    const markdown = decodeBase64Text(chapterFile.content);
+
+    chapters.push({
+      id: "github-chapter-" + index,
+      title: readMarkdownTitle(markdown) || "Chapter " + (index + 1),
+      content: markdown
+    });
+  }
+
+  if (chapters.length === 0) {
+    chapters.push({
+      id: "github-chapter-0",
+      title: "Untitled Chapter",
+      content: ""
+    });
+  }
+
+  sendJson(response, 200, {
+    book: {
+      id: "github:" + owner + "/" + repoName,
+      source: "github",
+      owner,
+      repo: repoName,
+      branch,
+      title: readYamlTitle(configText) || repoName,
+      introduction: {
+        title: readMarkdownTitle(introMarkdown) || "Introduction",
+        content: introMarkdown
+      },
+      chapters,
+      images: [],
+      activeChapterId: null,
+      activeItemType: "introduction"
+    }
+  });
+}
+
 async function fetchGitHubRepos(token) {
   const repos = [];
   let page = 1;
@@ -346,6 +461,51 @@ function readYamlTitle(configText) {
   }
 
   return match[1].trim().replace(/^["']|["']$/g, "");
+}
+
+function readChapterPathsFromToc(tocText) {
+  const paths = [];
+  const lines = String(tocText || "").split(/\r?\n/);
+
+  lines.forEach(function (line) {
+    const match = line.match(/^\s*-\s*file:\s*(.+)\s*$/);
+
+    if (!match) {
+      return;
+    }
+
+    const filePath = match[1].trim().replace(/^["']|["']$/g, "");
+
+    if (filePath === "intro" || filePath === "intro.md") {
+      return;
+    }
+
+    paths.push(ensureMarkdownExtension(filePath));
+  });
+
+  return paths;
+}
+
+function ensureMarkdownExtension(filePath) {
+  if (/\.md$/i.test(filePath)) {
+    return filePath;
+  }
+
+  return filePath + ".md";
+}
+
+function readMarkdownTitle(markdown) {
+  const lines = String(markdown || "").split(/\r?\n/);
+
+  for (const line of lines) {
+    const match = line.match(/^#\s+(.+)$/);
+
+    if (match) {
+      return match[1].trim();
+    }
+  }
+
+  return "";
 }
 
 function logout(request, response) {

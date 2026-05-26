@@ -292,6 +292,12 @@ pre {
   text-decoration: none;
 }
 
+.github-book-actions button {
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
 /* Book overview */
 
 .book-header {

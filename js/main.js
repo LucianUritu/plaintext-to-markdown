@@ -4,6 +4,7 @@ import {
   findChapterById,
   loadBook,
   removeChapter,
+  saveBook,
   setActiveChapter,
   setActiveIntroduction,
   updateBookTitle,
@@ -104,6 +105,41 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
+  async function openGitHubBook(book) {
+    setStatus("Opening " + book.title + " from GitHub...");
+
+    try {
+      const response = await fetch(
+        "/api/books/" +
+          encodeURIComponent(book.owner) +
+          "/" +
+          encodeURIComponent(book.repo) +
+          "?branch=" +
+          encodeURIComponent(book.branch || "main")
+      );
+
+      if (!response.ok) {
+        throw new Error("Could not open GitHub book.");
+      }
+
+      const result = await response.json();
+
+      currentBook = result.book;
+      saveBook(currentBook);
+      activeChapter = null;
+      activeEditorType = null;
+      Object.keys(imagePreviewUrls).forEach(function (path) {
+        delete imagePreviewUrls[path];
+      });
+
+      renderBookView();
+      setStatus("Opened " + currentBook.title + " from GitHub.");
+    } catch (error) {
+      console.error(error);
+      setStatus("Could not open GitHub book.");
+    }
+  }
+
   function renderGitHubBooks(books) {
     if (books.length === 0) {
       elements.githubBooksList.innerHTML =
@@ -135,6 +171,7 @@ document.addEventListener("DOMContentLoaded", function () {
         "</p>" +
         "</div>" +
         '<div class="github-book-actions">' +
+        '<button type="button" data-action="edit-github-book">Edit</button>' +
         '<a href="' +
         escapeHtml(book.repoUrl) +
         '" target="_blank" rel="noopener noreferrer">Repo</a>' +
@@ -142,6 +179,12 @@ document.addEventListener("DOMContentLoaded", function () {
         escapeHtml(book.pagesUrl) +
         '" target="_blank" rel="noopener noreferrer">Published</a>' +
         "</div>";
+
+      bookCard
+        .querySelector('[data-action="edit-github-book"]')
+        .addEventListener("click", function () {
+          openGitHubBook(book);
+        });
 
       elements.githubBooksList.appendChild(bookCard);
     });
