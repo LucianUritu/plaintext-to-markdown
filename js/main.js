@@ -48,6 +48,55 @@ document.addEventListener("DOMContentLoaded", function () {
     showStatus(elements.statusMessage, message);
   }
 
+  async function loadGitHubAuthState() {
+    try {
+      const response = await fetch("/api/me");
+
+      if (!response.ok) {
+        throw new Error("GitHub auth is not available.");
+      }
+
+      const authState = await response.json();
+      renderGitHubAuthState(authState);
+    } catch (error) {
+      elements.githubAuthSummary.textContent =
+        "Run the Node server to enable GitHub login.";
+      elements.githubLoginButton.classList.add("hidden");
+      elements.githubLogoutButton.classList.add("hidden");
+    }
+  }
+
+  function renderGitHubAuthState(authState) {
+    if (!authState.authenticated) {
+      elements.githubAuthSummary.textContent = "GitHub not connected";
+      elements.githubLoginButton.classList.remove("hidden");
+      elements.githubLogoutButton.classList.add("hidden");
+      return;
+    }
+
+    const displayName = authState.name || authState.login;
+
+    elements.githubAuthSummary.textContent = "Signed in as " + displayName;
+    elements.githubLoginButton.classList.add("hidden");
+    elements.githubLogoutButton.classList.remove("hidden");
+  }
+
+  async function logoutFromGitHub() {
+    try {
+      await fetch("/auth/logout", {
+        method: "POST"
+      });
+
+      renderGitHubAuthState({
+        authenticated: false
+      });
+
+      setStatus("Signed out of GitHub.");
+    } catch (error) {
+      setStatus("Could not sign out of GitHub.");
+    }
+  }
+
   function updateOutputs() {
     refreshImagePreviewUrls();
 
@@ -403,6 +452,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
   elements.publishPreviewButton.addEventListener("click", publishRealBookPreview);
 
+  elements.githubLoginButton.addEventListener("click", function () {
+    window.location.href = "/auth/github/start";
+  });
+
+  elements.githubLogoutButton.addEventListener("click", logoutFromGitHub);
+
   elements.copyPublishedUrlButton.addEventListener("click", async function () {
     const url = elements.publishedUrlInput.value;
 
@@ -502,6 +557,8 @@ document.addEventListener("DOMContentLoaded", function () {
   } else {
     showView(elements.homeView, views);
   }
+
+  loadGitHubAuthState();
 
   function getCurrentFileName() {
     if (activeEditorType === "introduction") {

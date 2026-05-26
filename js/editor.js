@@ -4,6 +4,11 @@ export function getEditorElements() {
     bookView: document.getElementById("bookView"),
     editorView: document.getElementById("editorView"),
 
+    githubAuthPanel: document.getElementById("githubAuthPanel"),
+    githubAuthSummary: document.getElementById("githubAuthSummary"),
+    githubLoginButton: document.getElementById("githubLoginButton"),
+    githubLogoutButton: document.getElementById("githubLogoutButton"),
+
     closeBookButton: document.getElementById("closeBookButton"),
     newBookButton: document.getElementById("newBookButton"),
     addChapterButton: document.getElementById("addChapterButton"),
