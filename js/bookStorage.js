@@ -222,6 +222,13 @@ export function normalizeBook(book) {
     return image && image.path && image.dataUrl;
   });
 
+  if (
+    book.githubRepository &&
+    (!book.githubRepository.owner || !book.githubRepository.repo)
+  ) {
+    delete book.githubRepository;
+  }
+
   if (!book.introduction) {
     book.introduction = {
       title: "Introduction",

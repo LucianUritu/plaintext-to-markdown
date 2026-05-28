@@ -2,6 +2,7 @@ const crypto = require("node:crypto");
 const fs = require("node:fs");
 const http = require("node:http");
 const path = require("node:path");
+const { pathToFileURL } = require("node:url");
 
 loadEnvFile();
 
@@ -14,6 +15,7 @@ const appBaseUrl = removeTrailingSlash(
 );
 const sessionSecret =
   process.env.SESSION_SECRET || "development-session-secret-change-me";
+let teachBooksGeneratorPromise = null;
 
 const contentTypes = {
   ".css": "text/css; charset=utf-8",
@@ -52,6 +54,11 @@ const server = http.createServer(async function (request, response) {
 
     if (url.pathname === "/api/books") {
       await getGitHubBooks(request, response);
+      return;
+    }
+
+    if (url.pathname === "/api/publish-book" && request.method === "POST") {
+      await publishBookToGitHub(request, response);
       return;
     }
 
@@ -324,6 +331,90 @@ async function getGitHubBook(request, response, url) {
   });
 }
 
+async function publishBookToGitHub(request, response) {
+  const session = getSessionFromRequest(request);
+
+  if (!session || !session.githubAccessToken) {
+    sendJson(response, 401, {
+      error: "Sign in with GitHub first."
+    });
+    return;
+  }
+
+  const body = await readJsonRequest(request);
+  let owner = cleanInput(body.owner);
+  let repo = cleanInput(body.repo);
+  let branch = cleanInput(body.branch || "main");
+  let files = body.files;
+  const book = body.book;
+  const bookTitle = cleanInput(body.bookTitle || "Untitled Book");
+  const commitMessage =
+    cleanInput(body.commitMessage) || "Update real TeachBooks preview";
+
+  if (!branch) {
+    sendJson(response, 400, {
+      error: "Missing GitHub branch."
+    });
+    return;
+  }
+
+  try {
+    let createdRepository = null;
+
+    if (!owner || !repo) {
+      createdRepository = await createBookRepository({
+        token: session.githubAccessToken,
+        title: bookTitle
+      });
+
+      owner = createdRepository.owner.login;
+      repo = createdRepository.name;
+      branch = createdRepository.default_branch || branch;
+    }
+
+    if (book) {
+      const generator = await loadTeachBooksGenerator();
+      files = generator.generateTeachBooksFiles(book, {
+        owner,
+        repo,
+        branch
+      });
+    }
+
+    if (!Array.isArray(files) || files.length === 0) {
+      sendJson(response, 400, {
+        error: "No files were provided for publishing."
+      });
+      return;
+    }
+
+    const result = await publishFilesToGitHub({
+      owner,
+      repo,
+      branch,
+      token: session.githubAccessToken,
+      files,
+      commitMessage
+    });
+
+    sendJson(response, 200, {
+      commitSha: result.commit.sha,
+      commitUrl: result.commit.html_url || "",
+      pagesUrl: "https://" + owner + ".github.io/" + repo + "/",
+      repository: {
+        owner,
+        repo,
+        branch,
+        created: Boolean(createdRepository)
+      }
+    });
+  } catch (error) {
+    sendJson(response, 502, {
+      error: error.message
+    });
+  }
+}
+
 async function fetchGitHubRepos(token) {
   const repos = [];
   let page = 1;
@@ -441,11 +532,315 @@ async function fetchGitHubJson(url, token) {
   return response.json();
 }
 
+async function createBookRepository({ token, title }) {
+  const baseName = slugifyRepositoryName(title || "book");
+  let counter = 1;
+
+  while (counter <= 20) {
+    const name = counter === 1 ? baseName : baseName + "-" + counter;
+    const response = await fetch("https://api.github.com/user/repos", {
+      method: "POST",
+      headers: createGitHubJsonHeaders(token),
+      body: JSON.stringify({
+        name,
+        description: "TeachBooks book created with the book platform.",
+        private: false,
+        auto_init: true
+      })
+    });
+
+    if (response.status === 201) {
+      return response.json();
+    }
+
+    if (response.status !== 422) {
+      const errorText = await response.text();
+      throw new Error("Could not create GitHub repository.\n\n" + errorText);
+    }
+
+    counter += 1;
+  }
+
+  throw new Error("Could not find an available repository name.");
+}
+
+async function publishFilesToGitHub({
+  owner,
+  repo,
+  branch,
+  token,
+  files,
+  commitMessage
+}) {
+  await checkRepositoryAccess({
+    owner,
+    repo,
+    token
+  });
+
+  const branchData = await getBranch({
+    owner,
+    repo,
+    branch,
+    token
+  });
+
+  const latestCommitSha = branchData.commit.sha;
+  const latestCommit = await getCommit({
+    owner,
+    repo,
+    commitSha: latestCommitSha,
+    token
+  });
+
+  const treeItems = await createTreeItems({
+    owner,
+    repo,
+    token,
+    files
+  });
+
+  const newTree = await createTree({
+    owner,
+    repo,
+    token,
+    baseTreeSha: latestCommit.tree.sha,
+    treeItems
+  });
+
+  const newCommit = await createCommit({
+    owner,
+    repo,
+    token,
+    message: commitMessage,
+    treeSha: newTree.sha,
+    parentCommitSha: latestCommitSha
+  });
+
+  await updateBranchReference({
+    owner,
+    repo,
+    branch,
+    token,
+    newCommitSha: newCommit.sha
+  });
+
+  return {
+    commit: newCommit
+  };
+}
+
+async function createTreeItems({ owner, repo, token, files }) {
+  const treeItems = [];
+
+  for (const file of files) {
+    const treeItem = {
+      path: file.path,
+      mode: "100644",
+      type: "blob"
+    };
+
+    if (file.encoding === "base64") {
+      const blob = await createBlob({
+        owner,
+        repo,
+        token,
+        content: file.content,
+        encoding: "base64"
+      });
+
+      treeItem.sha = blob.sha;
+    } else {
+      treeItem.content = file.content;
+    }
+
+    treeItems.push(treeItem);
+  }
+
+  return treeItems;
+}
+
+async function checkRepositoryAccess({ owner, repo, token }) {
+  const url =
+    "https://api.github.com/repos/" +
+    encodeURIComponent(owner) +
+    "/" +
+    encodeURIComponent(repo);
+
+  const response = await fetch(url, {
+    headers: createGitHubApiHeaders(token)
+  });
+
+  if (!response.ok) {
+    throw new Error("Could not access GitHub repository.");
+  }
+
+  return response.json();
+}
+
+async function getBranch({ owner, repo, branch, token }) {
+  const url =
+    "https://api.github.com/repos/" +
+    encodeURIComponent(owner) +
+    "/" +
+    encodeURIComponent(repo) +
+    "/branches/" +
+    encodeURIComponent(branch);
+
+  const response = await fetch(url, {
+    headers: createGitHubApiHeaders(token)
+  });
+
+  if (!response.ok) {
+    throw new Error("Could not access GitHub branch.");
+  }
+
+  return response.json();
+}
+
+async function getCommit({ owner, repo, commitSha, token }) {
+  const url =
+    "https://api.github.com/repos/" +
+    encodeURIComponent(owner) +
+    "/" +
+    encodeURIComponent(repo) +
+    "/git/commits/" +
+    encodeURIComponent(commitSha);
+
+  const response = await fetch(url, {
+    headers: createGitHubApiHeaders(token)
+  });
+
+  if (!response.ok) {
+    throw new Error("Could not read latest GitHub commit.");
+  }
+
+  return response.json();
+}
+
+async function createBlob({ owner, repo, token, content, encoding }) {
+  const url =
+    "https://api.github.com/repos/" +
+    encodeURIComponent(owner) +
+    "/" +
+    encodeURIComponent(repo) +
+    "/git/blobs";
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: createGitHubJsonHeaders(token),
+    body: JSON.stringify({
+      content,
+      encoding
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error("Could not upload image blob.");
+  }
+
+  return response.json();
+}
+
+async function createTree({ owner, repo, token, baseTreeSha, treeItems }) {
+  const url =
+    "https://api.github.com/repos/" +
+    encodeURIComponent(owner) +
+    "/" +
+    encodeURIComponent(repo) +
+    "/git/trees";
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: createGitHubJsonHeaders(token),
+    body: JSON.stringify({
+      base_tree: baseTreeSha,
+      tree: treeItems
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error("Could not create Git tree.");
+  }
+
+  return response.json();
+}
+
+async function createCommit({
+  owner,
+  repo,
+  token,
+  message,
+  treeSha,
+  parentCommitSha
+}) {
+  const url =
+    "https://api.github.com/repos/" +
+    encodeURIComponent(owner) +
+    "/" +
+    encodeURIComponent(repo) +
+    "/git/commits";
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: createGitHubJsonHeaders(token),
+    body: JSON.stringify({
+      message,
+      tree: treeSha,
+      parents: [parentCommitSha]
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error("Could not create Git commit.");
+  }
+
+  return response.json();
+}
+
+async function updateBranchReference({
+  owner,
+  repo,
+  branch,
+  token,
+  newCommitSha
+}) {
+  const url =
+    "https://api.github.com/repos/" +
+    encodeURIComponent(owner) +
+    "/" +
+    encodeURIComponent(repo) +
+    "/git/refs/heads/" +
+    encodeURIComponent(branch);
+
+  const response = await fetch(url, {
+    method: "PATCH",
+    headers: createGitHubJsonHeaders(token),
+    body: JSON.stringify({
+      sha: newCommitSha,
+      force: false
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error("Could not update GitHub branch.");
+  }
+
+  return response.json();
+}
+
 function createGitHubApiHeaders(token) {
   return {
     Authorization: "Bearer " + token,
     Accept: "application/vnd.github+json",
     "X-GitHub-Api-Version": "2022-11-28"
+  };
+}
+
+function createGitHubJsonHeaders(token) {
+  return {
+    ...createGitHubApiHeaders(token),
+    "Content-Type": "application/json"
   };
 }
 
@@ -506,6 +901,58 @@ function readMarkdownTitle(markdown) {
   }
 
   return "";
+}
+
+function readJsonRequest(request) {
+  return new Promise(function (resolve, reject) {
+    let body = "";
+
+    request.on("data", function (chunk) {
+      body += chunk;
+
+      if (body.length > 25 * 1024 * 1024) {
+        request.destroy();
+        reject(new Error("Request body is too large."));
+      }
+    });
+
+    request.on("end", function () {
+      try {
+        resolve(body ? JSON.parse(body) : {});
+      } catch (error) {
+        reject(new Error("Request body must be valid JSON."));
+      }
+    });
+
+    request.on("error", reject);
+  });
+}
+
+function loadTeachBooksGenerator() {
+  if (!teachBooksGeneratorPromise) {
+    const generatorUrl = pathToFileURL(
+      path.join(rootDirectory, "js", "teachbooksGenerator.js")
+    ).href;
+
+    teachBooksGeneratorPromise = import(generatorUrl);
+  }
+
+  return teachBooksGeneratorPromise;
+}
+
+function cleanInput(value) {
+  return String(value || "").trim();
+}
+
+function slugifyRepositoryName(value) {
+  const slug = String(value || "")
+    .toLowerCase()
+    .trim()
+    .replace(/['"]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return slug || "book";
 }
 
 function logout(request, response) {

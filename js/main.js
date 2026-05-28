@@ -28,8 +28,6 @@ import { plainTextToMarkdown } from "./markdownConverter.js";
 import { markdownToHtml } from "./markdownRenderer.js";
 import { setupEditorShortcuts } from "./shortcuts.js";
 import { escapeHtml } from "./utils.js";
-import { generateTeachBooksFiles } from "./teachbooksGenerator.js";
-import { publishFilesToGitHub } from "./githubPublisher.js";
 
 document.addEventListener("DOMContentLoaded", function () {
   const elements = getEditorElements();
@@ -454,59 +452,85 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    const owner = prompt("GitHub username or organization:");
-    if (!owner || !owner.trim()) {
-      return;
-    }
-
-    const repo = prompt("GitHub repository name:");
-    if (!repo || !repo.trim()) {
-      return;
-    }
-
-    const branch = prompt("Branch:", "main") || "main";
-
-    const token = prompt(
-      "GitHub token with repo access. For this prototype only. Later this should use OAuth/backend."
-    );
-
-    if (!token || !token.trim()) {
-      return;
-    }
-
-    const cleanOwner = owner.trim();
-    const cleanRepo = repo.trim();
-    const cleanBranch = branch.trim() || "main";
-    const cleanToken = token.trim();
-
-    const files = generateTeachBooksFiles(currentBook, {
-      owner: cleanOwner,
-      repo: cleanRepo,
-      branch: cleanBranch
-    });
+    const publishTarget = getPublishTarget();
 
     try {
       setStatus("Uploading TeachBooks files to GitHub...");
 
-      await publishFilesToGitHub({
-        owner: cleanOwner,
-        repo: cleanRepo,
-        branch: cleanBranch,
-        token: cleanToken,
-        files,
-        commitMessage: "Update real TeachBooks preview"
+      const response = await fetch("/api/publish-book", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          owner: publishTarget.owner,
+          repo: publishTarget.repo,
+          branch: publishTarget.branch,
+          bookTitle: currentBook.title,
+          book: currentBook,
+          commitMessage: "Update real TeachBooks preview"
+        })
       });
 
-      const pagesUrl = "https://" + cleanOwner + ".github.io/" + cleanRepo + "/";
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Publish failed.");
+      }
 
       setStatus("Files uploaded. GitHub Actions is building the real book preview.");
 
-      showPublishResult(pagesUrl);
+      rememberPublishConnection(result.repository);
+      showPublishResult(result.pagesUrl);
     } catch (error) {
       console.error(error);
-      setStatus("Publish failed. Check the browser console.");
+      setStatus("Publish failed.");
       alert(error.message);
     }
+  }
+
+  function getPublishTarget() {
+    if (currentBook.source === "github") {
+      return {
+        owner: currentBook.owner,
+        repo: currentBook.repo,
+        branch: currentBook.branch || "main"
+      };
+    }
+
+    if (currentBook.githubRepository) {
+      return {
+        owner: currentBook.githubRepository.owner,
+        repo: currentBook.githubRepository.repo,
+        branch: currentBook.githubRepository.branch || "main"
+      };
+    }
+
+    return {
+      owner: "",
+      repo: "",
+      branch: "main"
+    };
+  }
+
+  function rememberPublishConnection(repository) {
+    if (!repository || !repository.owner || !repository.repo) {
+      return;
+    }
+
+    currentBook.githubRepository = {
+      owner: repository.owner,
+      repo: repository.repo,
+      branch: repository.branch || "main"
+    };
+
+    if (currentBook.source === "github") {
+      currentBook.owner = repository.owner;
+      currentBook.repo = repository.repo;
+      currentBook.branch = repository.branch || "main";
+    }
+
+    saveBook(currentBook);
   }
 
   function showPublishResult(pagesUrl) {
@@ -656,17 +680,9 @@ document.addEventListener("DOMContentLoaded", function () {
     setStatus("Editor cleared.");
   });
 
-  if (currentBook) {
-    renderBookView();
-
-    if (currentBook.activeItemType === "introduction") {
-      openIntroduction();
-    } else if (currentBook.activeChapterId) {
-      openChapter(currentBook.activeChapterId);
-    }
-  } else {
-    showView(elements.homeView, views);
-  }
+  activeChapter = null;
+  activeEditorType = null;
+  showView(elements.homeView, views);
 
   loadGitHubAuthState();
 
