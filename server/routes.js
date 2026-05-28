@@ -123,8 +123,8 @@ function createRoutes({
     }
 
     const pathParts = url.pathname.split("/").filter(Boolean);
-    const owner = pathParts[3];
-    const repoName = pathParts[4];
+    const owner = pathParts[2];
+    const repoName = pathParts[3];
     const branch = url.searchParams.get("branch") || "main";
 
     if (!owner || !repoName) {
