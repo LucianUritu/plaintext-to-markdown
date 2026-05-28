@@ -2,6 +2,7 @@ import {
   loadPublishWorkflowStatus,
   publishBookPreview
 } from "./githubApi.js";
+import { formatPublishError } from "./publishErrorMessages.js";
 import {
   formatPublishValidationErrors,
   validateBookForPublish
@@ -90,7 +91,7 @@ export class PublishWorkflow {
       const workflowRun = await this.waitForPublishWorkflow(result);
 
       if (workflowRun.conclusion !== "success") {
-        throw new Error(createFailedWorkflowMessage(workflowRun));
+        throw createFailedWorkflowError(workflowRun);
       }
 
       this.publishProgress.complete("action");
@@ -114,7 +115,7 @@ export class PublishWorkflow {
       console.error(error);
       this.publishProgress.fail(activeProgressStep);
       this.setStatus("Publish failed.");
-      alert(error.message);
+      alert(formatPublishError(error));
     } finally {
       this.setPublishBusy(false);
     }
@@ -182,7 +183,7 @@ export class PublishWorkflow {
       const workflowRun = await this.waitForPublishWorkflow(result);
 
       if (workflowRun.conclusion !== "success") {
-        throw new Error(createFailedWorkflowMessage(workflowRun));
+        throw createFailedWorkflowError(workflowRun);
       }
 
       this.publishProgress.complete("action");
@@ -196,7 +197,7 @@ export class PublishWorkflow {
       console.error(overwriteError);
       this.publishProgress.fail(activeProgressStep);
       this.setStatus("Publish failed.");
-      alert(overwriteError.message);
+      alert(formatPublishError(overwriteError));
     } finally {
       this.setPublishBusy(false);
     }
@@ -274,17 +275,12 @@ export class PublishWorkflow {
   }
 }
 
-function createFailedWorkflowMessage(workflowRun) {
-  const actionLink = workflowRun.htmlUrl
-    ? "\n\nOpen the GitHub Actions run: " + workflowRun.htmlUrl
-    : "";
-
-  return (
-    "GitHub Actions finished with conclusion: " +
-    workflowRun.conclusion +
-    "." +
-    actionLink
+function createFailedWorkflowError(workflowRun) {
+  const error = new Error(
+    "GitHub Actions finished with conclusion: " + workflowRun.conclusion + "."
   );
+  error.workflowRun = workflowRun;
+  return error;
 }
 
 function formatWorkflowStatus(status) {

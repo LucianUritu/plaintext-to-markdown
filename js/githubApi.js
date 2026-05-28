@@ -49,7 +49,7 @@ export async function publishBookPreview(payload) {
     },
     body: JSON.stringify(payload)
   });
-  const result = await response.json();
+  const result = await readJsonResponse(response);
 
   if (!response.ok) {
     const error = new Error(result.error || "Publish failed.");
@@ -71,11 +71,21 @@ export async function loadPublishWorkflowStatus(publishResult) {
   });
 
   const response = await fetch("/api/publish-book/status?" + params.toString());
-  const result = await response.json();
+  const result = await readJsonResponse(response);
 
   if (!response.ok) {
     throw new Error(result.error || "Could not read GitHub Actions status.");
   }
 
   return result;
+}
+
+async function readJsonResponse(response) {
+  try {
+    return await response.json();
+  } catch (error) {
+    return {
+      error: "The app server returned an unexpected response."
+    };
+  }
 }
