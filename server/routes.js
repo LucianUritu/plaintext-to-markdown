@@ -116,12 +116,14 @@ function createRoutes({
   }
 
   async function getGitHubBook(request, response, url) {
-    const session = getRequiredGitHubSession(request, response);
 
+    const session = getRequiredGitHubSession(request, response);
     if (!session) {
       return;
     }
 
+    const pathParts = url.pathname.split("/").filter(Boolean);
+    // pathParts: ['api', 'books', ':owner', ':repo']
     const owner = pathParts[2];
     const repoName = pathParts[3];
     const branch = url.searchParams.get("branch") || "main";
