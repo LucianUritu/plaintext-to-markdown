@@ -38,6 +38,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const imagePreviewUrls = {};
   const choiceModal = new ChoiceModal(elements);
   const publishProgress = new PublishProgress(elements);
+  let publishResultTimer = null;
 
   let currentBook = loadBook();
   let activeChapter = null;
@@ -352,7 +353,22 @@ document.addEventListener("DOMContentLoaded", function () {
     saveBook(currentBook);
   }
 
+  function hidePublishResult() {
+    clearPublishResultTimer();
+    elements.publishResult.classList.add("hidden");
+  }
+
+  function clearPublishResultTimer() {
+    if (!publishResultTimer) {
+      return;
+    }
+
+    clearTimeout(publishResultTimer);
+    publishResultTimer = null;
+  }
+
   function showPublishResult(pagesUrl, message) {
+    clearPublishResultTimer();
     elements.publishResult.classList.remove("hidden");
     elements.publishResultMessage.textContent = message;
     elements.publishedUrlInput.value = pagesUrl;
@@ -362,6 +378,10 @@ document.addEventListener("DOMContentLoaded", function () {
     elements.publishedUrlInput.select();
 
     setStatus("Files updated successfully.");
+
+    publishResultTimer = setTimeout(function () {
+      hidePublishResult();
+    }, 120000);
   }
 
   const githubBooksController = new GitHubBooksController({
@@ -394,12 +414,13 @@ document.addEventListener("DOMContentLoaded", function () {
     setEditorInactive();
     clearImagePreviewUrls();
 
-    elements.publishResult.classList.add("hidden");
+    hidePublishResult();
     renderBookView();
     setStatus("New book created.");
   });
 
   elements.closeBookButton.addEventListener("click", function () {
+    hidePublishResult();
     activeChapter = null;
     activeEditorType = null;
     showView(elements.homeView, views);
@@ -506,6 +527,8 @@ document.addEventListener("DOMContentLoaded", function () {
     updateOutputs,
     showStatus: setStatus
   });
+
+  elements.openPublishedUrlLink.addEventListener("click", hidePublishResult);
 
   elements.copyButton.addEventListener("click", function () {
     copyMarkdown(elements.markdownOutput.textContent, setStatus);

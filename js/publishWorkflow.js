@@ -2,6 +2,10 @@ import {
   loadPublishWorkflowStatus,
   publishBookPreview
 } from "./githubApi.js";
+import {
+  formatPublishValidationErrors,
+  validateBookForPublish
+} from "./publishValidation.js";
 
 export class PublishWorkflow {
   constructor({
@@ -33,6 +37,16 @@ export class PublishWorkflow {
 
     if (!currentBook) {
       this.setStatus("Create a book first.");
+      return;
+    }
+
+    const validation = validateBookForPublish(currentBook);
+
+    if (!validation.valid) {
+      this.elements.publishResult.classList.add("hidden");
+      this.publishProgress.hide();
+      this.setStatus("Publish blocked. Fix the book issues first.");
+      alert(formatPublishValidationErrors(validation.errors));
       return;
     }
 
@@ -81,6 +95,7 @@ export class PublishWorkflow {
 
       this.publishProgress.complete("action");
       this.publishProgress.complete("published");
+      this.publishProgress.hideAfter(30000);
       this.showPublishResult(
         result.pagesUrl,
         "Files updated successfully. The real TeachBooks book preview is ready."
@@ -172,6 +187,7 @@ export class PublishWorkflow {
 
       this.publishProgress.complete("action");
       this.publishProgress.complete("published");
+      this.publishProgress.hideAfter(30000);
       this.showPublishResult(
         result.pagesUrl,
         "Files updated successfully. The real TeachBooks book preview is ready."
