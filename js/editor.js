@@ -40,7 +40,14 @@ export function getEditorElements() {
     publishResultMessage: document.getElementById("publishResultMessage"),
     publishedUrlInput: document.getElementById("publishedUrlInput"),
     copyPublishedUrlButton: document.getElementById("copyPublishedUrlButton"),
-    openPublishedUrlLink: document.getElementById("openPublishedUrlLink")
+    openPublishedUrlLink: document.getElementById("openPublishedUrlLink"),
+
+    choiceModalBackdrop: document.getElementById("choiceModalBackdrop"),
+    choiceModal: document.getElementById("choiceModal"),
+    choiceModalTitle: document.getElementById("choiceModalTitle"),
+    choiceModalMessage: document.getElementById("choiceModalMessage"),
+    choiceModalActions: document.getElementById("choiceModalActions"),
+    choiceModalCloseButton: document.getElementById("choiceModalCloseButton")
   };
 }
 

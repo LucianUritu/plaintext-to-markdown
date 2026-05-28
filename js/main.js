@@ -21,6 +21,7 @@ import {
   showView
 } from "./editor.js";
 
+import { ChoiceModal } from "./choiceModal.js";
 import { exampleText } from "./examples.js";
 import { copyMarkdown, downloadMarkdown } from "./fileActions.js";
 import { GitHubBooksController } from "./githubBooksController.js";
@@ -34,6 +35,7 @@ import { escapeHtml } from "./utils.js";
 document.addEventListener("DOMContentLoaded", function () {
   const elements = getEditorElements();
   const imagePreviewUrls = {};
+  const choiceModal = new ChoiceModal(elements);
 
   let currentBook = loadBook();
   let activeChapter = null;
@@ -377,6 +379,9 @@ document.addEventListener("DOMContentLoaded", function () {
     getPublishTarget,
     rememberPublishConnection,
     saveActiveEditorContent,
+    askChoice: function (options) {
+      return choiceModal.ask(options);
+    },
     setStatus,
     showPublishResult
   });

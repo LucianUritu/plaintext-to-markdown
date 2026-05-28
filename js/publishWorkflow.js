@@ -10,6 +10,7 @@ export class PublishWorkflow {
     getPublishTarget,
     rememberPublishConnection,
     saveActiveEditorContent,
+    askChoice,
     setStatus,
     showPublishResult
   }) {
@@ -18,6 +19,7 @@ export class PublishWorkflow {
     this.getPublishTarget = getPublishTarget;
     this.rememberPublishConnection = rememberPublishConnection;
     this.saveActiveEditorContent = saveActiveEditorContent;
+    this.askChoice = askChoice;
     this.setStatus = setStatus;
     this.showPublishResult = showPublishResult;
   }
@@ -33,7 +35,7 @@ export class PublishWorkflow {
     }
 
     const publishTarget = this.getPublishTarget();
-    const repositoryVisibility = this.chooseRepositoryVisibility(publishTarget);
+    const repositoryVisibility = await this.chooseRepositoryVisibility(publishTarget);
 
     if (!repositoryVisibility) {
       this.setStatus("Publish cancelled.");
@@ -95,12 +97,25 @@ export class PublishWorkflow {
     const repositoryName = repository
       ? repository.owner + "/" + repository.repo
       : "that repository";
-    const shouldOverwrite = confirm(
-      repositoryName +
-        " already exists. Do you want to overwrite it with this book preview?"
-    );
+    const overwriteChoice = await this.askChoice({
+      title: "Repository Exists",
+      message:
+        repositoryName +
+        " already exists. Do you want to overwrite it with this book preview?",
+      choices: [
+        {
+          label: "Overwrite",
+          value: "overwrite"
+        },
+        {
+          label: "Cancel",
+          value: null,
+          variant: "secondary"
+        }
+      ]
+    });
 
-    if (!shouldOverwrite) {
+    if (overwriteChoice !== "overwrite") {
       this.setStatus("Publish cancelled.");
       return;
     }
@@ -139,16 +154,26 @@ export class PublishWorkflow {
     }
   }
 
-  chooseRepositoryVisibility(publishTarget) {
+  async chooseRepositoryVisibility(publishTarget) {
     if (publishTarget.owner || publishTarget.repo) {
       return "existing";
     }
 
-    const shouldCreatePrivate = confirm(
-      "Create the new GitHub repository as private?\n\nChoose OK for private, or Cancel for public."
-    );
-
-    return shouldCreatePrivate ? "private" : "public";
+    return this.askChoice({
+      title: "Create Repository",
+      message: "Choose who can see the new GitHub repository for this book.",
+      choices: [
+        {
+          label: "Private",
+          value: "private"
+        },
+        {
+          label: "Public",
+          value: "public",
+          variant: "secondary"
+        }
+      ]
+    });
   }
 
   createPublish(

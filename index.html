@@ -146,6 +146,26 @@
     <p id="status" class="status"></p>
   </main>
 
+  <div id="choiceModalBackdrop" class="modal-backdrop hidden" role="presentation">
+    <section
+      id="choiceModal"
+      class="choice-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="choiceModalTitle"
+      aria-describedby="choiceModalMessage"
+    >
+      <div class="choice-modal-header">
+        <h2 id="choiceModalTitle"></h2>
+        <button id="choiceModalCloseButton" class="icon-button" type="button" aria-label="Close">
+          &times;
+        </button>
+      </div>
+      <p id="choiceModalMessage"></p>
+      <div id="choiceModalActions" class="choice-modal-actions"></div>
+    </section>
+  </div>
+
   <script type="module" src="./js/main.js"></script>
 </body>
 </html>
