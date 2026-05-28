@@ -37,6 +37,7 @@ export function getEditorElements() {
     imageAltInput: document.getElementById("imageAltInput"),
 
     publishResult: document.getElementById("publishResult"),
+    publishResultMessage: document.getElementById("publishResultMessage"),
     publishedUrlInput: document.getElementById("publishedUrlInput"),
     copyPublishedUrlButton: document.getElementById("copyPublishedUrlButton"),
     openPublishedUrlLink: document.getElementById("openPublishedUrlLink")
@@ -53,6 +54,10 @@ export function showView(viewToShow, allViews) {
 
 export function showStatus(statusElement, message, duration = 4000) {
   statusElement.textContent = message;
+
+  if (duration <= 0) {
+    return;
+  }
 
   setTimeout(function () {
     if (statusElement.textContent === message) {

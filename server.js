@@ -62,6 +62,11 @@ const server = http.createServer(async function (request, response) {
       return;
     }
 
+    if (url.pathname === "/api/publish-book/status") {
+      await getPublishWorkflowStatus(request, response, url);
+      return;
+    }
+
     if (url.pathname.startsWith("/api/books/")) {
       await getGitHubBook(request, response, url);
       return;
@@ -415,6 +420,61 @@ async function publishBookToGitHub(request, response) {
   }
 }
 
+async function getPublishWorkflowStatus(request, response, url) {
+  const session = getSessionFromRequest(request);
+
+  if (!session || !session.githubAccessToken) {
+    sendJson(response, 401, {
+      error: "Sign in with GitHub first."
+    });
+    return;
+  }
+
+  const owner = cleanInput(url.searchParams.get("owner"));
+  const repo = cleanInput(url.searchParams.get("repo"));
+  const branch = cleanInput(url.searchParams.get("branch") || "main");
+  const commitSha = cleanInput(url.searchParams.get("commitSha"));
+
+  if (!owner || !repo || !branch || !commitSha) {
+    sendJson(response, 400, {
+      error: "Missing repository, branch, or commit SHA."
+    });
+    return;
+  }
+
+  try {
+    const workflowRun = await findWorkflowRunForCommit({
+      owner,
+      repo,
+      branch,
+      commitSha,
+      token: session.githubAccessToken
+    });
+
+    if (!workflowRun) {
+      sendJson(response, 200, {
+        found: false,
+        status: "waiting",
+        conclusion: null
+      });
+      return;
+    }
+
+    sendJson(response, 200, {
+      found: true,
+      id: workflowRun.id,
+      name: workflowRun.name || "",
+      status: workflowRun.status,
+      conclusion: workflowRun.conclusion,
+      htmlUrl: workflowRun.html_url || ""
+    });
+  } catch (error) {
+    sendJson(response, 502, {
+      error: error.message
+    });
+  }
+}
+
 async function fetchGitHubRepos(token) {
   const repos = [];
   let page = 1;
@@ -530,6 +590,43 @@ async function fetchGitHubJson(url, token) {
   }
 
   return response.json();
+}
+
+async function findWorkflowRunForCommit({ owner, repo, branch, commitSha, token }) {
+  const url =
+    "https://api.github.com/repos/" +
+    encodeURIComponent(owner) +
+    "/" +
+    encodeURIComponent(repo) +
+    "/actions/runs?branch=" +
+    encodeURIComponent(branch) +
+    "&event=push&per_page=20";
+
+  const response = await fetch(url, {
+    headers: createGitHubApiHeaders(token)
+  });
+
+  if (!response.ok) {
+    throw new Error("Could not read GitHub Actions workflow runs.");
+  }
+
+  const data = await response.json();
+  const runs = Array.isArray(data.workflow_runs) ? data.workflow_runs : [];
+  const matchingRuns = runs.filter(function (run) {
+    return run.head_sha === commitSha;
+  });
+
+  return (
+    matchingRuns.find(isTeachBooksWorkflowRun) ||
+    (matchingRuns.length === 1 ? matchingRuns[0] : null)
+  );
+}
+
+function isTeachBooksWorkflowRun(run) {
+  return (
+    run.name === "call-deploy-book" ||
+    run.path === ".github/workflows/call-deploy-book.yml"
+  );
 }
 
 async function createBookRepository({ token, title }) {

@@ -43,8 +43,8 @@ document.addEventListener("DOMContentLoaded", function () {
     elements.editorView
   ];
 
-  function setStatus(message) {
-    showStatus(elements.statusMessage, message);
+  function setStatus(message, duration) {
+    showStatus(elements.statusMessage, message, duration);
   }
 
   async function loadGitHubAuthState() {
@@ -455,7 +455,9 @@ document.addEventListener("DOMContentLoaded", function () {
     const publishTarget = getPublishTarget();
 
     try {
-      setStatus("Uploading TeachBooks files to GitHub...");
+      setPublishBusy(true, "Uploading...");
+      elements.publishResult.classList.add("hidden");
+      setStatus("Uploading TeachBooks files to GitHub...", 0);
 
       const response = await fetch("/api/publish-book", {
         method: "POST",
@@ -478,15 +480,100 @@ document.addEventListener("DOMContentLoaded", function () {
         throw new Error(result.error || "Publish failed.");
       }
 
-      setStatus("Files uploaded. GitHub Actions is building the real book preview.");
-
       rememberPublishConnection(result.repository);
-      showPublishResult(result.pagesUrl);
+
+      setPublishBusy(true, "Building...");
+      setStatus("Files uploaded. Waiting for GitHub Actions to finish...", 0);
+
+      const workflowRun = await waitForPublishWorkflow(result);
+
+      if (workflowRun.conclusion !== "success") {
+        const actionLink = workflowRun.htmlUrl
+          ? "\n\nOpen the GitHub Actions run: " + workflowRun.htmlUrl
+          : "";
+
+        throw new Error(
+          "GitHub Actions finished with conclusion: " +
+            workflowRun.conclusion +
+            "." +
+            actionLink
+        );
+      }
+
+      showPublishResult(
+        result.pagesUrl,
+        "Files updated successfully. The real TeachBooks book preview is ready."
+      );
     } catch (error) {
       console.error(error);
       setStatus("Publish failed.");
       alert(error.message);
+    } finally {
+      setPublishBusy(false);
     }
+  }
+
+  function setPublishBusy(isBusy, label) {
+    elements.publishPreviewButton.disabled = isBusy;
+    elements.publishPreviewButton.classList.toggle("is-loading", isBusy);
+    elements.publishPreviewButton.textContent = isBusy
+      ? label || "Publishing..."
+      : "Publish Book Preview";
+  }
+
+  async function waitForPublishWorkflow(publishResult) {
+    const maxAttempts = 80;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      const workflowRun = await fetchPublishWorkflowStatus(publishResult);
+
+      if (!workflowRun.found) {
+        setStatus("Files uploaded. Waiting for GitHub Actions to start...", 0);
+      } else if (workflowRun.status === "completed") {
+        return workflowRun;
+      } else {
+        setStatus(
+          "GitHub Actions is " + formatWorkflowStatus(workflowRun.status) + "...",
+          0
+        );
+      }
+
+      await delay(5000);
+    }
+
+    throw new Error("Timed out waiting for GitHub Actions to finish.");
+  }
+
+  async function fetchPublishWorkflowStatus(publishResult) {
+    const params = new URLSearchParams({
+      owner: publishResult.repository.owner,
+      repo: publishResult.repository.repo,
+      branch: publishResult.repository.branch,
+      commitSha: publishResult.commitSha
+    });
+
+    const response = await fetch("/api/publish-book/status?" + params.toString());
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || "Could not read GitHub Actions status.");
+    }
+
+    return result;
+  }
+
+  function formatWorkflowStatus(status) {
+    if (status === "in_progress") {
+      return "in progress";
+    }
+
+    return status || "starting";
+  }
+
+  function delay(milliseconds) {
+    return new Promise(function (resolve) {
+      setTimeout(resolve, milliseconds);
+    });
   }
 
   function getPublishTarget() {
@@ -533,15 +620,16 @@ document.addEventListener("DOMContentLoaded", function () {
     saveBook(currentBook);
   }
 
-  function showPublishResult(pagesUrl) {
+  function showPublishResult(pagesUrl, message) {
     elements.publishResult.classList.remove("hidden");
+    elements.publishResultMessage.textContent = message;
     elements.publishedUrlInput.value = pagesUrl;
     elements.openPublishedUrlLink.href = pagesUrl;
 
     elements.publishedUrlInput.focus();
     elements.publishedUrlInput.select();
 
-    setStatus("Files uploaded. Copy or open the preview URL below.");
+    setStatus("Files updated successfully.");
   }
 
   elements.newBookButton.addEventListener("click", function () {
