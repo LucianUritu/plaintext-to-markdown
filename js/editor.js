@@ -38,6 +38,12 @@ export function getEditorElements() {
 
     publishResult: document.getElementById("publishResult"),
     publishResultMessage: document.getElementById("publishResultMessage"),
+    publishProgressPanel: document.getElementById("publishProgressPanel"),
+    publishStepRepository: document.getElementById("publishStepRepository"),
+    publishStepPages: document.getElementById("publishStepPages"),
+    publishStepUpload: document.getElementById("publishStepUpload"),
+    publishStepAction: document.getElementById("publishStepAction"),
+    publishStepPublished: document.getElementById("publishStepPublished"),
     publishedUrlInput: document.getElementById("publishedUrlInput"),
     copyPublishedUrlButton: document.getElementById("copyPublishedUrlButton"),
     openPublishedUrlLink: document.getElementById("openPublishedUrlLink"),

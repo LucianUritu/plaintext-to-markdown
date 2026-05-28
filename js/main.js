@@ -28,6 +28,7 @@ import { GitHubBooksController } from "./githubBooksController.js";
 import { setupImageHandler } from "./imageHandler.js";
 import { plainTextToMarkdown } from "./markdownConverter.js";
 import { markdownToHtml } from "./markdownRenderer.js";
+import { PublishProgress } from "./publishProgress.js";
 import { PublishWorkflow } from "./publishWorkflow.js";
 import { setupEditorShortcuts } from "./shortcuts.js";
 import { escapeHtml } from "./utils.js";
@@ -36,6 +37,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const elements = getEditorElements();
   const imagePreviewUrls = {};
   const choiceModal = new ChoiceModal(elements);
+  const publishProgress = new PublishProgress(elements);
 
   let currentBook = loadBook();
   let activeChapter = null;
@@ -382,6 +384,7 @@ document.addEventListener("DOMContentLoaded", function () {
     askChoice: function (options) {
       return choiceModal.ask(options);
     },
+    publishProgress,
     setStatus,
     showPublishResult
   });

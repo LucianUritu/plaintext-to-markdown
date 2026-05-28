@@ -11,6 +11,7 @@ export class PublishWorkflow {
     rememberPublishConnection,
     saveActiveEditorContent,
     askChoice,
+    publishProgress,
     setStatus,
     showPublishResult
   }) {
@@ -20,6 +21,7 @@ export class PublishWorkflow {
     this.rememberPublishConnection = rememberPublishConnection;
     this.saveActiveEditorContent = saveActiveEditorContent;
     this.askChoice = askChoice;
+    this.publishProgress = publishProgress;
     this.setStatus = setStatus;
     this.showPublishResult = showPublishResult;
   }
@@ -35,9 +37,14 @@ export class PublishWorkflow {
     }
 
     const publishTarget = this.getPublishTarget();
+    let activeProgressStep = "repository";
+    this.publishProgress.reset();
+    this.publishProgress.activate(activeProgressStep);
+
     const repositoryVisibility = await this.chooseRepositoryVisibility(publishTarget);
 
     if (!repositoryVisibility) {
+      this.publishProgress.hide();
       this.setStatus("Publish cancelled.");
       return;
     }
@@ -46,6 +53,10 @@ export class PublishWorkflow {
       this.setPublishBusy(true, "Uploading...");
       this.elements.publishResult.classList.add("hidden");
       this.setStatus("Uploading TeachBooks files to GitHub...", 0);
+      this.publishProgress.complete("repository");
+      activeProgressStep = "pages";
+      this.publishProgress.activate(activeProgressStep);
+      this.publishProgress.activate("upload");
 
       const result = await this.createPublish(
         currentBook,
@@ -55,6 +66,10 @@ export class PublishWorkflow {
       );
 
       this.rememberPublishConnection(result.repository);
+      this.publishProgress.complete("pages");
+      this.publishProgress.complete("upload");
+      activeProgressStep = "action";
+      this.publishProgress.activate(activeProgressStep);
       this.setPublishBusy(true, "Building...");
       this.setStatus("Files uploaded. Waiting for GitHub Actions to finish...", 0);
 
@@ -64,6 +79,8 @@ export class PublishWorkflow {
         throw new Error(createFailedWorkflowMessage(workflowRun));
       }
 
+      this.publishProgress.complete("action");
+      this.publishProgress.complete("published");
       this.showPublishResult(
         result.pagesUrl,
         "Files updated successfully. The real TeachBooks book preview is ready."
@@ -80,6 +97,7 @@ export class PublishWorkflow {
       }
 
       console.error(error);
+      this.publishProgress.fail(activeProgressStep);
       this.setStatus("Publish failed.");
       alert(error.message);
     } finally {
@@ -116,13 +134,20 @@ export class PublishWorkflow {
     });
 
     if (overwriteChoice !== "overwrite") {
+      this.publishProgress.hide();
       this.setStatus("Publish cancelled.");
       return;
     }
 
+    let activeProgressStep = "repository";
+
     try {
       this.setPublishBusy(true, "Uploading...");
       this.setStatus("Overwriting existing GitHub repository...", 0);
+      this.publishProgress.complete("repository");
+      activeProgressStep = "pages";
+      this.publishProgress.activate(activeProgressStep);
+      this.publishProgress.activate("upload");
 
       const result = await this.createPublish(
         currentBook,
@@ -132,6 +157,10 @@ export class PublishWorkflow {
       );
 
       this.rememberPublishConnection(result.repository);
+      this.publishProgress.complete("pages");
+      this.publishProgress.complete("upload");
+      activeProgressStep = "action";
+      this.publishProgress.activate(activeProgressStep);
       this.setPublishBusy(true, "Building...");
       this.setStatus("Files uploaded. Waiting for GitHub Actions to finish...", 0);
 
@@ -141,12 +170,15 @@ export class PublishWorkflow {
         throw new Error(createFailedWorkflowMessage(workflowRun));
       }
 
+      this.publishProgress.complete("action");
+      this.publishProgress.complete("published");
       this.showPublishResult(
         result.pagesUrl,
         "Files updated successfully. The real TeachBooks book preview is ready."
       );
     } catch (overwriteError) {
       console.error(overwriteError);
+      this.publishProgress.fail(activeProgressStep);
       this.setStatus("Publish failed.");
       alert(overwriteError.message);
     } finally {
