@@ -159,7 +159,7 @@ function generateIntro(book) {
   const introTitle = introduction.title || "Introduction";
   const introContent = introduction.content || "";
 
-  const markdown = plainTextToMarkdown(introContent).trim();
+  const markdown = convertBodyTextToMarkdown(introContent);
 
   if (markdown.length === 0) {
     return `# ${introTitle}
@@ -170,10 +170,6 @@ Use the table of contents on the left to navigate through the chapters.
 `;
   }
 
-  if (markdown.startsWith("#")) {
-    return markdown + "\n";
-  }
-
   return `# ${introTitle}
 
 ${markdown}
@@ -182,7 +178,7 @@ ${markdown}
 
 function generateChapterMarkdown(chapter, index) {
   const title = chapter.title || "Untitled Chapter";
-  const body = plainTextToMarkdown(chapter.content || "").trim();
+  const body = convertBodyTextToMarkdown(chapter.content || "");
 
   if (body.length === 0) {
     return `# ${title}
@@ -190,14 +186,22 @@ function generateChapterMarkdown(chapter, index) {
 `;
   }
 
-  if (body.startsWith("#")) {
-    return body + "\n";
-  }
-
   return `# ${title}
 
 ${body}
 `;
+}
+
+function convertBodyTextToMarkdown(text) {
+  const lines = plainTextToMarkdown(text).trim().replace(/\r\n/g, "\n").split("\n");
+
+  if (!/^#\s+/.test(lines[0] || "")) {
+    return lines.join("\n").trim();
+  }
+
+  lines[0] = lines[0].replace(/^#\s+/, "");
+
+  return lines.join("\n").trim();
 }
 
 function makeChapterFileName(chapter, index) {

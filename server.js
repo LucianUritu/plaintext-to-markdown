@@ -282,6 +282,7 @@ async function getGitHubBook(request, response, url) {
   const configText = decodeBase64Text(configFile.content);
   const tocText = decodeBase64Text(tocFile.content);
   const introMarkdown = decodeBase64Text(introFile.content);
+  const introDocument = parseMarkdownDocument(introMarkdown);
   const chapterPaths = readChapterPathsFromToc(tocText);
   const chapters = [];
 
@@ -300,11 +301,12 @@ async function getGitHubBook(request, response, url) {
     }
 
     const markdown = decodeBase64Text(chapterFile.content);
+    const chapterDocument = parseMarkdownDocument(markdown);
 
     chapters.push({
       id: "github-chapter-" + index,
-      title: readMarkdownTitle(markdown) || "Chapter " + (index + 1),
-      content: markdown
+      title: chapterDocument.title || "Chapter " + (index + 1),
+      content: chapterDocument.content
     });
   }
 
@@ -325,8 +327,8 @@ async function getGitHubBook(request, response, url) {
       branch,
       title: readYamlTitle(configText) || repoName,
       introduction: {
-        title: readMarkdownTitle(introMarkdown) || "Introduction",
-        content: introMarkdown
+        title: introDocument.title || "Introduction",
+        content: introDocument.content
       },
       chapters,
       images: [],
@@ -998,6 +1000,30 @@ function readMarkdownTitle(markdown) {
   }
 
   return "";
+}
+
+function parseMarkdownDocument(markdown) {
+  const lines = String(markdown || "").replace(/\r\n/g, "\n").split("\n");
+  let title = "";
+  let bodyStartIndex = 0;
+
+  if (lines.length > 0) {
+    const titleMatch = lines[0].match(/^#\s+(.+)$/);
+
+    if (titleMatch) {
+      title = titleMatch[1].trim();
+      bodyStartIndex = 1;
+    }
+  }
+
+  while (bodyStartIndex < lines.length && lines[bodyStartIndex].trim() === "") {
+    bodyStartIndex += 1;
+  }
+
+  return {
+    title,
+    content: lines.slice(bodyStartIndex).join("\n").trim()
+  };
 }
 
 function readJsonRequest(request) {
