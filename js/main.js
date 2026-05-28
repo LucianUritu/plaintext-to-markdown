@@ -23,9 +23,11 @@ import {
 
 import { exampleText } from "./examples.js";
 import { copyMarkdown, downloadMarkdown } from "./fileActions.js";
+import { GitHubBooksController } from "./githubBooksController.js";
 import { setupImageHandler } from "./imageHandler.js";
 import { plainTextToMarkdown } from "./markdownConverter.js";
 import { markdownToHtml } from "./markdownRenderer.js";
+import { PublishWorkflow } from "./publishWorkflow.js";
 import { setupEditorShortcuts } from "./shortcuts.js";
 import { escapeHtml } from "./utils.js";
 
@@ -47,161 +49,19 @@ document.addEventListener("DOMContentLoaded", function () {
     showStatus(elements.statusMessage, message, duration);
   }
 
-  async function loadGitHubAuthState() {
-    try {
-      const response = await fetch("/api/me");
-
-      if (!response.ok) {
-        throw new Error("GitHub auth is not available.");
-      }
-
-      const authState = await response.json();
-      renderGitHubAuthState(authState);
-    } catch (error) {
-      elements.githubAuthSummary.textContent =
-        "Run the Node server to enable GitHub login.";
-      elements.githubLoginButton.classList.add("hidden");
-      elements.githubLogoutButton.classList.add("hidden");
-    }
+  function setCurrentBook(book) {
+    currentBook = book;
   }
 
-  function renderGitHubAuthState(authState) {
-    if (!authState.authenticated) {
-      elements.githubAuthSummary.textContent = "GitHub not connected";
-      elements.githubLoginButton.classList.remove("hidden");
-      elements.githubLogoutButton.classList.add("hidden");
-      elements.githubBooksPanel.classList.add("hidden");
-      elements.githubBooksList.innerHTML = "";
-      return;
-    }
-
-    const displayName = authState.name || authState.login;
-
-    elements.githubAuthSummary.textContent = "Signed in as " + displayName;
-    elements.githubLoginButton.classList.add("hidden");
-    elements.githubLogoutButton.classList.remove("hidden");
-    elements.githubBooksPanel.classList.remove("hidden");
-    loadGitHubBooks();
+  function setEditorInactive() {
+    activeChapter = null;
+    activeEditorType = null;
   }
 
-  async function loadGitHubBooks() {
-    elements.githubBooksList.innerHTML =
-      '<p class="github-books-message">Scanning GitHub repositories...</p>';
-
-    try {
-      const response = await fetch("/api/books");
-
-      if (!response.ok) {
-        throw new Error("Could not load GitHub books.");
-      }
-
-      const result = await response.json();
-      renderGitHubBooks(result.books || []);
-    } catch (error) {
-      elements.githubBooksList.innerHTML =
-        '<p class="github-books-message">Could not load GitHub books.</p>';
-    }
-  }
-
-  async function openGitHubBook(book) {
-    setStatus("Opening " + book.title + " from GitHub...");
-
-    try {
-      const response = await fetch(
-        "/api/books/" +
-          encodeURIComponent(book.owner) +
-          "/" +
-          encodeURIComponent(book.repo) +
-          "?branch=" +
-          encodeURIComponent(book.branch || "main")
-      );
-
-      if (!response.ok) {
-        throw new Error("Could not open GitHub book.");
-      }
-
-      const result = await response.json();
-
-      currentBook = result.book;
-      saveBook(currentBook);
-      activeChapter = null;
-      activeEditorType = null;
-      Object.keys(imagePreviewUrls).forEach(function (path) {
-        delete imagePreviewUrls[path];
-      });
-
-      renderBookView();
-      setStatus("Opened " + currentBook.title + " from GitHub.");
-    } catch (error) {
-      console.error(error);
-      setStatus("Could not open GitHub book.");
-    }
-  }
-
-  function renderGitHubBooks(books) {
-    if (books.length === 0) {
-      elements.githubBooksList.innerHTML =
-        '<p class="github-books-message">No TeachBooks repositories found yet.</p>';
-      return;
-    }
-
-    elements.githubBooksList.innerHTML = "";
-
-    books.forEach(function (book) {
-      const bookCard = document.createElement("article");
-      bookCard.className = "github-book-card";
-
-      const updatedDate = book.updatedAt
-        ? new Date(book.updatedAt).toLocaleDateString()
-        : "Unknown";
-
-      bookCard.innerHTML =
-        "<div>" +
-        "<h3>" +
-        escapeHtml(book.title) +
-        "</h3>" +
-        "<p>" +
-        escapeHtml(book.owner + "/" + book.repo) +
-        " · " +
-        escapeHtml(book.private ? "Private" : "Public") +
-        " · Updated " +
-        escapeHtml(updatedDate) +
-        "</p>" +
-        "</div>" +
-        '<div class="github-book-actions">' +
-        '<button type="button" data-action="edit-github-book">Edit</button>' +
-        '<a href="' +
-        escapeHtml(book.repoUrl) +
-        '" target="_blank" rel="noopener noreferrer">Repo</a>' +
-        '<a href="' +
-        escapeHtml(book.pagesUrl) +
-        '" target="_blank" rel="noopener noreferrer">Published</a>' +
-        "</div>";
-
-      bookCard
-        .querySelector('[data-action="edit-github-book"]')
-        .addEventListener("click", function () {
-          openGitHubBook(book);
-        });
-
-      elements.githubBooksList.appendChild(bookCard);
+  function clearImagePreviewUrls() {
+    Object.keys(imagePreviewUrls).forEach(function (path) {
+      delete imagePreviewUrls[path];
     });
-  }
-
-  async function logoutFromGitHub() {
-    try {
-      await fetch("/auth/logout", {
-        method: "POST"
-      });
-
-      renderGitHubAuthState({
-        authenticated: false
-      });
-
-      setStatus("Signed out of GitHub.");
-    } catch (error) {
-      setStatus("Could not sign out of GitHub.");
-    }
   }
 
   function updateOutputs() {
@@ -444,138 +304,6 @@ document.addEventListener("DOMContentLoaded", function () {
     setStatus(result.message);
   }
 
-  async function publishRealBookPreview() {
-    saveActiveEditorContent();
-
-    if (!currentBook) {
-      setStatus("Create a book first.");
-      return;
-    }
-
-    const publishTarget = getPublishTarget();
-
-    try {
-      setPublishBusy(true, "Uploading...");
-      elements.publishResult.classList.add("hidden");
-      setStatus("Uploading TeachBooks files to GitHub...", 0);
-
-      const response = await fetch("/api/publish-book", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          owner: publishTarget.owner,
-          repo: publishTarget.repo,
-          branch: publishTarget.branch,
-          bookTitle: currentBook.title,
-          book: currentBook,
-          commitMessage: "Update real TeachBooks preview"
-        })
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "Publish failed.");
-      }
-
-      rememberPublishConnection(result.repository);
-
-      setPublishBusy(true, "Building...");
-      setStatus("Files uploaded. Waiting for GitHub Actions to finish...", 0);
-
-      const workflowRun = await waitForPublishWorkflow(result);
-
-      if (workflowRun.conclusion !== "success") {
-        const actionLink = workflowRun.htmlUrl
-          ? "\n\nOpen the GitHub Actions run: " + workflowRun.htmlUrl
-          : "";
-
-        throw new Error(
-          "GitHub Actions finished with conclusion: " +
-            workflowRun.conclusion +
-            "." +
-            actionLink
-        );
-      }
-
-      showPublishResult(
-        result.pagesUrl,
-        "Files updated successfully. The real TeachBooks book preview is ready."
-      );
-    } catch (error) {
-      console.error(error);
-      setStatus("Publish failed.");
-      alert(error.message);
-    } finally {
-      setPublishBusy(false);
-    }
-  }
-
-  function setPublishBusy(isBusy, label) {
-    elements.publishPreviewButton.disabled = isBusy;
-    elements.publishPreviewButton.classList.toggle("is-loading", isBusy);
-    elements.publishPreviewButton.textContent = isBusy
-      ? label || "Publishing..."
-      : "Publish Book Preview";
-  }
-
-  async function waitForPublishWorkflow(publishResult) {
-    const maxAttempts = 80;
-
-    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-      const workflowRun = await fetchPublishWorkflowStatus(publishResult);
-
-      if (!workflowRun.found) {
-        setStatus("Files uploaded. Waiting for GitHub Actions to start...", 0);
-      } else if (workflowRun.status === "completed") {
-        return workflowRun;
-      } else {
-        setStatus(
-          "GitHub Actions is " + formatWorkflowStatus(workflowRun.status) + "...",
-          0
-        );
-      }
-
-      await delay(5000);
-    }
-
-    throw new Error("Timed out waiting for GitHub Actions to finish.");
-  }
-
-  async function fetchPublishWorkflowStatus(publishResult) {
-    const params = new URLSearchParams({
-      owner: publishResult.repository.owner,
-      repo: publishResult.repository.repo,
-      branch: publishResult.repository.branch,
-      commitSha: publishResult.commitSha
-    });
-
-    const response = await fetch("/api/publish-book/status?" + params.toString());
-    const result = await response.json();
-
-    if (!response.ok) {
-      throw new Error(result.error || "Could not read GitHub Actions status.");
-    }
-
-    return result;
-  }
-
-  function formatWorkflowStatus(status) {
-    if (status === "in_progress") {
-      return "in progress";
-    }
-
-    return status || "starting";
-  }
-
-  function delay(milliseconds) {
-    return new Promise(function (resolve) {
-      setTimeout(resolve, milliseconds);
-    });
-  }
-
   function getPublishTarget() {
     if (currentBook.source === "github") {
       return {
@@ -632,13 +360,31 @@ document.addEventListener("DOMContentLoaded", function () {
     setStatus("Files updated successfully.");
   }
 
+  const githubBooksController = new GitHubBooksController({
+    elements,
+    clearImagePreviewUrls,
+    renderBookView,
+    setCurrentBook,
+    setEditorInactive,
+    setStatus
+  });
+
+  const publishWorkflow = new PublishWorkflow({
+    elements,
+    getCurrentBook: function () {
+      return currentBook;
+    },
+    getPublishTarget,
+    rememberPublishConnection,
+    saveActiveEditorContent,
+    setStatus,
+    showPublishResult
+  });
+
   elements.newBookButton.addEventListener("click", function () {
     currentBook = createNewBook();
-    activeChapter = null;
-    activeEditorType = null;
-    Object.keys(imagePreviewUrls).forEach(function (path) {
-      delete imagePreviewUrls[path];
-    });
+    setEditorInactive();
+    clearImagePreviewUrls();
 
     elements.publishResult.classList.add("hidden");
     renderBookView();
@@ -671,14 +417,20 @@ document.addEventListener("DOMContentLoaded", function () {
 
   elements.removeChapterButton.addEventListener("click", removeChapterFromBook);
 
-  elements.publishPreviewButton.addEventListener("click", publishRealBookPreview);
+  elements.publishPreviewButton.addEventListener("click", function () {
+    publishWorkflow.publish();
+  });
 
   elements.githubLoginButton.addEventListener("click", function () {
     window.location.href = "/auth/github/start";
   });
 
-  elements.githubLogoutButton.addEventListener("click", logoutFromGitHub);
-  elements.refreshGithubBooksButton.addEventListener("click", loadGitHubBooks);
+  elements.githubLogoutButton.addEventListener("click", function () {
+    githubBooksController.logout();
+  });
+  elements.refreshGithubBooksButton.addEventListener("click", function () {
+    githubBooksController.loadBooks();
+  });
 
   elements.copyPublishedUrlButton.addEventListener("click", async function () {
     const url = elements.publishedUrlInput.value;
@@ -772,7 +524,7 @@ document.addEventListener("DOMContentLoaded", function () {
   activeEditorType = null;
   showView(elements.homeView, views);
 
-  loadGitHubAuthState();
+  githubBooksController.loadAuthState();
 
   function getCurrentFileName() {
     if (activeEditorType === "introduction") {
