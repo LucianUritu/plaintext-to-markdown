@@ -2,7 +2,6 @@ const {
   decodeBase64Text,
   parseMarkdownDocument,
   readChapterPathsFromToc,
-  readYamlTitle
 } = require("./teachBooksParser");
 
 class TeachBooksService {
@@ -56,7 +55,6 @@ class TeachBooksService {
       return null;
     }
 
-    const configText = decodeBase64Text(configFile.content);
     const tocText = decodeBase64Text(tocFile.content);
     const introDocument = parseMarkdownDocument(
       decodeBase64Text(introFile.content)
@@ -74,7 +72,7 @@ class TeachBooksService {
       owner,
       repo: repoName,
       branch,
-      title: readYamlTitle(configText) || repoName,
+      title: repoName,
       introduction: {
         title: introDocument.title || "Introduction",
         content: introDocument.content
@@ -120,14 +118,11 @@ class TeachBooksService {
       return null;
     }
 
-    const configText = decodeBase64Text(requiredFiles[0].content);
-    const title = readYamlTitle(configText) || repoName;
-
     return {
       id: owner + "/" + repoName,
       owner,
       repo: repoName,
-      title,
+      title: repoName,
       branch,
       private: Boolean(repo.private),
       updatedAt: repo.updated_at,

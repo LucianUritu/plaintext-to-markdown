@@ -52,7 +52,11 @@ export async function publishBookPreview(payload) {
   const result = await response.json();
 
   if (!response.ok) {
-    throw new Error(result.error || "Publish failed.");
+    const error = new Error(result.error || "Publish failed.");
+    error.status = response.status;
+    error.code = result.code || "";
+    error.repository = result.repository || null;
+    throw error;
   }
 
   return result;

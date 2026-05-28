@@ -20,7 +20,9 @@ const appBaseUrl = removeTrailingSlash(
 const sessionSecret =
   process.env.SESSION_SECRET || "development-session-secret-change-me";
 
-const sessionStore = createSessionStore(sessionSecret);
+const sessionStore = createSessionStore(sessionSecret, {
+  sessionMaxAgeSeconds: Number(process.env.SESSION_MAX_AGE_SECONDS || 60 * 60 * 8)
+});
 const serveStaticFile = createStaticFileServer(rootDirectory);
 const routes = createRoutes({
   appBaseUrl,

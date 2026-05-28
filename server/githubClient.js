@@ -68,36 +68,47 @@ function createGitHubClient(token) {
     return response.json();
   }
 
-  async function createRepository({ title }) {
-    const baseName = slugifyRepositoryName(title || "book");
-    let counter = 1;
+  async function createRepository({ name, isPrivate }) {
+    const response = await fetch("https://api.github.com/user/repos", {
+      method: "POST",
+      headers: createGitHubJsonHeaders(),
+      body: JSON.stringify({
+        name,
+        description: "TeachBooks book created with the book platform.",
+        private: Boolean(isPrivate),
+        auto_init: true
+      })
+    });
 
-    while (counter <= 20) {
-      const name = counter === 1 ? baseName : baseName + "-" + counter;
-      const response = await fetch("https://api.github.com/user/repos", {
-        method: "POST",
-        headers: createGitHubJsonHeaders(),
-        body: JSON.stringify({
-          name,
-          description: "TeachBooks book created with the book platform.",
-          private: false,
-          auto_init: true
-        })
-      });
-
-      if (response.status === 201) {
-        return response.json();
-      }
-
-      if (response.status !== 422) {
-        const errorText = await response.text();
-        throw new Error("Could not create GitHub repository.\n\n" + errorText);
-      }
-
-      counter += 1;
+    if (response.status === 201) {
+      return response.json();
     }
 
-    throw new Error("Could not find an available repository name.");
+    if (response.status === 422) {
+      return {
+        exists: true,
+        name
+      };
+    }
+
+    const errorText = await response.text();
+    throw new Error("Could not create GitHub repository.\n\n" + errorText);
+  }
+
+  async function getRepository({ owner, repo }) {
+    const response = await fetch(createRepositoryUrl(owner, repo), {
+      headers: createGitHubApiHeaders()
+    });
+
+    if (response.status === 404) {
+      return null;
+    }
+
+    if (!response.ok) {
+      throw new Error("Could not read GitHub repository.");
+    }
+
+    return response.json();
   }
 
   async function findWorkflowRunForCommit({ owner, repo, branch, commitSha }) {
@@ -108,7 +119,7 @@ function createGitHubClient(token) {
       encodeURIComponent(repo) +
       "/actions/runs?branch=" +
       encodeURIComponent(branch) +
-      "&event=push&per_page=20";
+      "&per_page=20";
 
     const response = await fetch(url, {
       headers: createGitHubApiHeaders()
@@ -130,6 +141,53 @@ function createGitHubClient(token) {
     );
   }
 
+  async function ensurePagesSite({ owner, repo }) {
+    const existingSite = await getPagesSite({ owner, repo });
+
+    if (existingSite) {
+      return existingSite;
+    }
+
+    const response = await fetch(createRepositoryUrl(owner, repo) + "/pages", {
+      method: "POST",
+      headers: createGitHubJsonHeaders(),
+      body: JSON.stringify({
+        build_type: "workflow"
+      })
+    });
+
+    if (response.status === 201) {
+      return response.json();
+    }
+
+    if (response.status === 409) {
+      return getPagesSite({ owner, repo });
+    }
+
+    throw new Error(
+      "Could not enable GitHub Pages.\n\n" + (await readGitHubError(response))
+    );
+  }
+
+  async function getPagesSite({ owner, repo }) {
+    const response = await fetch(createRepositoryUrl(owner, repo) + "/pages", {
+      headers: createGitHubApiHeaders()
+    });
+
+    if (response.status === 404) {
+      return null;
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        "Could not read GitHub Pages settings.\n\n" +
+          (await readGitHubError(response))
+      );
+    }
+
+    return response.json();
+  }
+
   async function publishFiles({ owner, repo, branch, files, commitMessage }) {
     await checkRepositoryAccess({ owner, repo });
 
@@ -147,6 +205,22 @@ function createGitHubClient(token) {
       baseTreeSha: latestCommit.tree.sha,
       treeItems
     });
+    if (newTree.sha === latestCommit.tree.sha) {
+      return {
+        commit: {
+          sha: latestCommitSha,
+          html_url:
+            "https://github.com/" +
+            owner +
+            "/" +
+            repo +
+            "/commit/" +
+            latestCommitSha
+        },
+        noChanges: true
+      };
+    }
+
     const newCommit = await createCommit({
       owner,
       repo,
@@ -163,8 +237,34 @@ function createGitHubClient(token) {
     });
 
     return {
-      commit: newCommit
+      commit: newCommit,
+      noChanges: false
     };
+  }
+
+  async function dispatchWorkflow({ owner, repo, branch, workflowFileName }) {
+    const response = await fetch(
+      createRepositoryUrl(owner, repo) +
+        "/actions/workflows/" +
+        encodeURIComponent(workflowFileName) +
+        "/dispatches",
+      {
+        method: "POST",
+        headers: createGitHubJsonHeaders(),
+        body: JSON.stringify({
+          ref: branch
+        })
+      }
+    );
+
+    if (response.status === 204) {
+      return;
+    }
+
+    throw new Error(
+      "Could not start GitHub Actions workflow.\n\n" +
+        (await readGitHubError(response))
+    );
   }
 
   async function fetchJson(url) {
@@ -283,7 +383,9 @@ function createGitHubClient(token) {
     });
 
     if (!response.ok) {
-      throw new Error("Could not create Git tree.");
+      throw new Error(
+        "Could not create Git tree.\n\n" + (await readGitHubError(response))
+      );
     }
 
     return response.json();
@@ -359,12 +461,39 @@ function createGitHubClient(token) {
     };
   }
 
+  async function readGitHubError(response) {
+    const text = await response.text();
+
+    if (!text) {
+      return "GitHub returned HTTP " + response.status + ".";
+    }
+
+    try {
+      const body = JSON.parse(text);
+      const errors = Array.isArray(body.errors)
+        ? "\n" +
+          body.errors
+            .map(function (error) {
+              return "- " + (error.message || JSON.stringify(error));
+            })
+            .join("\n")
+        : "";
+
+      return (body.message || text) + errors;
+    } catch (error) {
+      return text;
+    }
+  }
+
   return {
     createRepository,
+    dispatchWorkflow,
+    ensurePagesSite,
     fetchRepositoryFile,
     fetchRepos,
     findWorkflowRunForCommit,
     getCurrentUser,
+    getRepository,
     publishFiles
   };
 }
@@ -388,5 +517,6 @@ function slugifyRepositoryName(value) {
 }
 
 module.exports = {
-  createGitHubClient
+  createGitHubClient,
+  slugifyRepositoryName
 };

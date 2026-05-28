@@ -111,9 +111,9 @@ export class GitHubBooksController {
         "</h3>" +
         "<p>" +
         escapeHtml(book.owner + "/" + book.repo) +
-        " Â· " +
+        " - " +
         escapeHtml(book.private ? "Private" : "Public") +
-        " Â· Updated " +
+        " - Updated " +
         escapeHtml(updatedDate) +
         "</p>" +
         "</div>" +

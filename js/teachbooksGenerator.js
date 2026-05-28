@@ -199,7 +199,7 @@ function convertBodyTextToMarkdown(text) {
     return lines.join("\n").trim();
   }
 
-  lines[0] = lines[0].replace(/^#\s+/, "");
+  lines[0] = lines[0].replace(/^(#\s+)+/, "");
 
   return lines.join("\n").trim();
 }

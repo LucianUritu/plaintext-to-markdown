@@ -1,5 +1,6 @@
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
+const { slugifyRepositoryName } = require("./githubClient");
 
 class PublishService {
   constructor({ githubClient, rootDirectory }) {
@@ -8,7 +9,17 @@ class PublishService {
     this.generatorPromise = null;
   }
 
-  async publishBook({ owner, repo, branch, files, book, bookTitle, commitMessage }) {
+  async publishBook({
+    owner,
+    repo,
+    branch,
+    files,
+    book,
+    bookTitle,
+    commitMessage,
+    overwriteExistingRepository,
+    repositoryVisibility
+  }) {
     let targetOwner = owner;
     let targetRepo = repo;
     let targetBranch = branch;
@@ -16,13 +27,56 @@ class PublishService {
     let publishFiles = files;
 
     if (!targetOwner || !targetRepo) {
-      createdRepository = await this.githubClient.createRepository({
-        title: bookTitle
+      const currentUser = await this.githubClient.getCurrentUser();
+
+      if (!currentUser.ok) {
+        throw new Error("Could not read GitHub user.");
+      }
+
+      const repositoryName = slugifyRepositoryName(bookTitle || "book");
+      const existingRepository = await this.githubClient.getRepository({
+        owner: currentUser.user.login,
+        repo: repositoryName
       });
 
-      targetOwner = createdRepository.owner.login;
-      targetRepo = createdRepository.name;
-      targetBranch = createdRepository.default_branch || targetBranch;
+      if (existingRepository && !overwriteExistingRepository) {
+        return {
+          error: "A repository named " + repositoryName + " already exists.",
+          code: "REPOSITORY_EXISTS",
+          repository: {
+            owner: currentUser.user.login,
+            repo: repositoryName,
+            branch: existingRepository.default_branch || targetBranch
+          }
+        };
+      }
+
+      if (existingRepository) {
+        targetOwner = currentUser.user.login;
+        targetRepo = repositoryName;
+        targetBranch = existingRepository.default_branch || targetBranch;
+      } else {
+        createdRepository = await this.githubClient.createRepository({
+          name: repositoryName,
+          isPrivate: repositoryVisibility === "private"
+        });
+
+        if (createdRepository.exists) {
+          return {
+            error: "A repository named " + repositoryName + " already exists.",
+            code: "REPOSITORY_EXISTS",
+            repository: {
+              owner: currentUser.user.login,
+              repo: repositoryName,
+              branch: targetBranch
+            }
+          };
+        }
+
+        targetOwner = createdRepository.owner.login;
+        targetRepo = createdRepository.name;
+        targetBranch = createdRepository.default_branch || targetBranch;
+      }
     }
 
     if (book) {
@@ -40,6 +94,11 @@ class PublishService {
       };
     }
 
+    await this.githubClient.ensurePagesSite({
+      owner: targetOwner,
+      repo: targetRepo
+    });
+
     const result = await this.githubClient.publishFiles({
       owner: targetOwner,
       repo: targetRepo,
@@ -48,9 +107,19 @@ class PublishService {
       commitMessage
     });
 
+    if (result.noChanges) {
+      await this.githubClient.dispatchWorkflow({
+        owner: targetOwner,
+        repo: targetRepo,
+        branch: targetBranch,
+        workflowFileName: "call-deploy-book.yml"
+      });
+    }
+
     return {
       commitSha: result.commit.sha,
       commitUrl: result.commit.html_url || "",
+      workflowDispatched: Boolean(result.noChanges),
       pagesUrl: "https://" + targetOwner + ".github.io/" + targetRepo + "/",
       repository: {
         owner: targetOwner,

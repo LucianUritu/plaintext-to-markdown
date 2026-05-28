@@ -23,7 +23,7 @@ function createRoutes({
 
     const session = sessionStore.getOrCreateSession(request, response);
     const state = crypto.randomBytes(24).toString("hex");
-    const scope = process.env.GITHUB_OAUTH_SCOPE || "read:user repo";
+    const scope = process.env.GITHUB_OAUTH_SCOPE || "read:user repo workflow";
 
     session.githubOAuthState = state;
 
@@ -180,12 +180,18 @@ function createRoutes({
         book: body.book,
         bookTitle: cleanInput(body.bookTitle || "Untitled Book"),
         commitMessage:
-          cleanInput(body.commitMessage) || "Update real TeachBooks preview"
+          cleanInput(body.commitMessage) || "Update real TeachBooks preview",
+        overwriteExistingRepository: Boolean(body.overwriteExistingRepository),
+        repositoryVisibility: normalizeRepositoryVisibility(
+          body.repositoryVisibility
+        )
       });
 
       if (result.error) {
-        sendJson(response, 400, {
-          error: result.error
+        sendJson(response, result.code === "REPOSITORY_EXISTS" ? 409 : 400, {
+          error: result.error,
+          code: result.code,
+          repository: result.repository
         });
         return;
       }
@@ -314,6 +320,10 @@ function createRoutes({
 
 function cleanInput(value) {
   return String(value || "").trim();
+}
+
+function normalizeRepositoryVisibility(value) {
+  return value === "private" ? "private" : "public";
 }
 
 module.exports = {
