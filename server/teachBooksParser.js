@@ -12,6 +12,7 @@ function readYamlTitle(configText) {
   return match[1].trim().replace(/^["']|["']$/g, "");
 }
 
+//test
 function readChapterPathsFromToc(tocText) {
   const paths = [];
   const lines = String(tocText || "").split(/\r?\n/);
