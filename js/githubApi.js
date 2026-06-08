@@ -89,3 +89,34 @@ async function readJsonResponse(response) {
     };
   }
 }
+
+export async function loadVersionBranches({ owner, repo }) {
+  const params = new URLSearchParams({
+    owner,
+    repo,
+    prefix: "version/",
+    per_page: "100"
+  });
+
+  const response = await fetch("/api/github/branches?" + params.toString());
+
+  if (!response.ok) {
+    const result = await readJsonResponse(response);
+    throw new Error(result.error || "Could not load version branches.");
+  }
+
+  return response.json();
+}
+
+export async function loadCommitInfo({ owner, repo, sha }) {
+  const params = new URLSearchParams({ owner, repo, sha });
+
+  const response = await fetch("/api/github/commit?" + params.toString());
+
+  if (!response.ok) {
+    const result = await readJsonResponse(response);
+    throw new Error(result.error || "Could not load commit info.");
+  }
+
+  return response.json();
+}
