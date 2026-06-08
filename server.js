@@ -76,7 +76,16 @@ const server = http.createServer(async function (request, response) {
       await routes.getGitHubBook(request, response, url);
       return;
     }
+    
+    if (url.pathname === "/api/github/branches") {
+      await routes.getVersionBranches(request, response, url);
+      return;
+    }
 
+    if (url.pathname === "/api/github/commit") {
+      await routes.getCommitInfo(request, response, url);
+      return;
+    }
     serveStaticFile(url.pathname, response);
   } catch (error) {
     console.error(error);
