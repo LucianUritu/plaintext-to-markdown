@@ -54,15 +54,22 @@ export function getEditorElements() {
     choiceModalMessage: document.getElementById("choiceModalMessage"),
     choiceModalActions: document.getElementById("choiceModalActions"),
     choiceModalCloseButton: document.getElementById("choiceModalCloseButton")
-
+      
     //added version picker modal elements
-    versionPickerBackdrop, versionPickerModal, versionPickerInput,
-    versionPickerError, versionPickerConfirm, versionPickerCancel,
-    versionPickerClose, versionPickerPreview,
+    versionPickerBackdrop: document.getElementById("versionPickerBackdrop"),
+    versionPickerModal: document.getElementById("versionPickerModal"),
+    versionPickerInput: document.getElementById("versionPickerInput"),
+    versionPickerError: document.getElementById("versionPickerError"),
+    versionPickerConfirm: document.getElementById("versionPickerConfirm"),
+    versionPickerCancel: document.getElementById("versionPickerCancel"),
+    versionPickerClose: document.getElementById("versionPickerClose"),
+    versionPickerPreview: document.getElementById("versionPickerPreview"),
 
     //added version history panel elements
-    versionHistoryPanel, versionHistoryList,
-    refreshVersionHistoryButton, versionHistoryError
+    versionHistoryPanel: document.getElementById("versionHistoryPanel"),
+    versionHistoryList: document.getElementById("versionHistoryList"),
+    refreshVersionHistoryButton: document.getElementById("refreshVersionHistoryButton"),
+    versionHistoryError: document.getElementById("versionHistoryError")
   };
 }
 
