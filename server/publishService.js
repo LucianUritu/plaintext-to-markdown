@@ -115,12 +115,16 @@ class PublishService {
         workflowFileName: "call-deploy-book.yml"
       });
     }
-
+    const pagesUrl = targetBranch.startsWith("version/")
+      ? "https://" + targetOwner + ".github.io/" + targetRepo + "/"
+        + targetBranch.replace(/\//g, "-") + "/"
+      : "https://" + targetOwner + ".github.io/" + targetRepo + "/";
+    
     return {
       commitSha: result.commit.sha,
       commitUrl: result.commit.html_url || "",
       workflowDispatched: Boolean(result.noChanges),
-      pagesUrl: "https://" + targetOwner + ".github.io/" + targetRepo + "/",
+      pagesUrl,
       repository: {
         owner: targetOwner,
         repo: targetRepo,
