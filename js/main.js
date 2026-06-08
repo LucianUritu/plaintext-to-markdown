@@ -48,6 +48,8 @@ document.addEventListener("DOMContentLoaded", function () {
     getCurrentBook: function () {
       return currentBook;
     }
+  });
+  
   let publishResultTimer = null;
 
   let currentBook = loadBook();
