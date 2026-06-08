@@ -191,7 +191,14 @@ function createGitHubClient(token) {
   async function publishFiles({ owner, repo, branch, files, commitMessage }) {
     await checkRepositoryAccess({ owner, repo });
 
-    const branchData = await getBranch({ owner, repo, branch });
+    let branchData = await getBranch({ owner, repo, branch });
+
+    if (!branchData) {
+      const defaultBranchName = await getDefaultBranch({ owner, repo });
+      const defaultBranchData = await getBranch({ owner, repo, branch: defaultBranchName });
+      await createBranch({ owner, repo, branch, fromSha: defaultBranchData.commit.sha });
+      branchData = await getBranch({ owner, repo, branch });
+    }
     const latestCommitSha = branchData.commit.sha;
     const latestCommit = await getCommit({
       owner,
@@ -331,13 +338,98 @@ function createGitHubClient(token) {
       headers: createGitHubApiHeaders()
     });
 
+    if (response.status === 404) {
+      return null;
+    }
+
     if (!response.ok) {
       throw new Error("Could not access GitHub branch.");
+    }
+
+  async function getDefaultBranch({ owner, repo }) {
+    const response = await fetch(createRepositoryUrl(owner, repo), {
+      headers: createGitHubApiHeaders()
+    });
+
+    if (!response.ok) {
+      throw new Error("Could not read repository default branch.");
+    }
+
+    const data = await response.json();
+    return data.default_branch || "main";
+  }
+
+  async function createBranch({ owner, repo, branch, fromSha }) {
+    const response = await fetch(
+      createRepositoryUrl(owner, repo) + "/git/refs",
+      {
+        method: "POST",
+        headers: createGitHubJsonHeaders(),
+        body: JSON.stringify({
+          ref: "refs/heads/" + branch,
+          sha: fromSha
+        })
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        "Could not create branch '" + branch + "'.\n\n" +
+        (await readGitHubError(response))
+      );
     }
 
     return response.json();
   }
 
+  async function listBranches({ owner, repo, prefix, perPage = 100 }) {
+    const url =
+      createRepositoryUrl(owner, repo) +
+      "/branches?per_page=" + encodeURIComponent(perPage);
+
+    const response = await fetch(url, {
+      headers: createGitHubApiHeaders()
+    });
+
+    if (!response.ok) {
+      throw new Error("Could not list branches.\n\n" + (await readGitHubError(response)));
+    }
+
+    const branches = await response.json();
+
+    if (!Array.isArray(branches)) {
+      return [];
+    }
+
+    return branches
+      .filter(function (b) {
+        return !prefix || String(b.name || "").startsWith(prefix);
+      })
+      .map(function (b) {
+        return {
+          name: b.name,
+          commitSha: b.commit && b.commit.sha ? b.commit.sha : ""
+        };
+      });
+  }
+
+  async function getCommitBySha({ owner, repo, sha }) {
+    const url =
+      createRepositoryUrl(owner, repo) +
+      "/commits/" +
+      encodeURIComponent(sha);
+
+    const response = await fetch(url, {
+      headers: createGitHubApiHeaders()
+    });
+
+    if (!response.ok) {
+      throw new Error("Could not read commit " + sha + ".\n\n" + (await readGitHubError(response)));
+    }
+
+    return response.json();
+  }
+    
   async function getCommit({ owner, repo, commitSha }) {
     const url =
       createRepositoryUrl(owner, repo) +
@@ -487,16 +579,19 @@ function createGitHubClient(token) {
 
   return {
     createRepository,
+    createBranch,
     dispatchWorkflow,
     ensurePagesSite,
     fetchRepositoryFile,
     fetchRepos,
     findWorkflowRunForCommit,
+    getCommitBySha,
+    getDefaultBranch,
     getCurrentUser,
     getRepository,
+    listBranches,
     publishFiles
   };
-}
 
 function isTeachBooksWorkflowRun(run) {
   return (
