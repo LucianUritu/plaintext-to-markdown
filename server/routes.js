@@ -258,6 +258,51 @@ function createRoutes({
     }
   }
 
+    async function getVersionBranches(request, response, url) {
+    const session = getRequiredGitHubSession(request, response);
+    if (!session) return;
+
+    const owner = cleanInput(url.searchParams.get("owner"));
+    const repo = cleanInput(url.searchParams.get("repo"));
+    const prefix = cleanInput(url.searchParams.get("prefix") || "version/");
+    const perPage = Math.min(Number(url.searchParams.get("per_page") || 100), 100);
+
+    if (!owner || !repo) {
+      sendJson(response, 400, { error: "Missing owner or repo." });
+      return;
+    }
+
+    try {
+      const branches = await createGitHubClient(session.githubAccessToken)
+        .listBranches({ owner, repo, prefix, perPage });
+      sendJson(response, 200, { branches });
+    } catch (error) {
+      sendJson(response, 502, { error: error.message });
+    }
+  }
+
+  async function getCommitInfo(request, response, url) {
+    const session = getRequiredGitHubSession(request, response);
+    if (!session) return;
+
+    const owner = cleanInput(url.searchParams.get("owner"));
+    const repo = cleanInput(url.searchParams.get("repo"));
+    const sha = cleanInput(url.searchParams.get("sha"));
+
+    if (!owner || !repo || !sha) {
+      sendJson(response, 400, { error: "Missing owner, repo, or sha." });
+      return;
+    }
+
+    try {
+      const commit = await createGitHubClient(session.githubAccessToken)
+        .getCommitBySha({ owner, repo, sha });
+      sendJson(response, 200, commit);
+    } catch (error) {
+      sendJson(response, 502, { error: error.message });
+    }
+  }
+  
   function logout(request, response) {
     sessionStore.destroySession(request, response);
     sendJson(response, 200, {
@@ -309,10 +354,12 @@ function createRoutes({
 
   return {
     finishGitHubLogin,
+    getCommitInfo,
     getCurrentUser,
     getGitHubBook,
     getGitHubBooks,
     getPublishWorkflowStatus,
+    getVersionBranches,
     logout,
     publishBookToGitHub,
     startGitHubLogin
