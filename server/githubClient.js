@@ -346,6 +346,9 @@ function createGitHubClient(token) {
       throw new Error("Could not access GitHub branch.");
     }
 
+    return response.json();
+  } //fixed missing return statement
+
   async function getDefaultBranch({ owner, repo }) {
     const response = await fetch(createRepositoryUrl(owner, repo), {
       headers: createGitHubApiHeaders()
@@ -577,6 +580,13 @@ function createGitHubClient(token) {
     }
   }
 
+  function isTeachBooksWorkflowRun(run) {
+    return (
+      run.name === "call-deploy-book" ||
+      run.path === ".github/workflows/call-deploy-book.yml"
+    );
+  }
+
   return {
     createRepository,
     createBranch,
@@ -592,12 +602,6 @@ function createGitHubClient(token) {
     listBranches,
     publishFiles
   };
-
-function isTeachBooksWorkflowRun(run) {
-  return (
-    run.name === "call-deploy-book" ||
-    run.path === ".github/workflows/call-deploy-book.yml"
-  );
 }
 
 function slugifyRepositoryName(value) {
