@@ -186,6 +186,42 @@
     <p id="status" class="status"></p>
   </main>
 
+  <div id="versionPickerBackdrop" class="modal-backdrop hidden" role="presentation">
+    <section
+      id="versionPickerModal"
+      class="choice-modal version-picker-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="versionPickerTitle"
+    >
+      <div class="choice-modal-header">
+        <h2 id="versionPickerTitle">Choose a Version Label</h2>
+        <button id="versionPickerClose" class="icon-button" type="button" aria-label="Close">
+          &times;
+        </button>
+      </div>
+      <p>Enter a label like <strong>1.0</strong> or <strong>chapter-3-draft</strong>.
+         Each publish creates a separate Git branch.</p>
+      <label for="versionPickerInput" class="version-picker-label">Version label</label>
+      <input
+        id="versionPickerInput"
+        class="version-picker-input"
+        type="text"
+        placeholder="e.g. 1.0 or chapter-3-draft"
+        autocomplete="off"
+        spellcheck="false"
+      />
+      <p class="version-picker-preview">
+        Git branch: <code id="versionPickerPreview">version/…</code>
+      </p>
+      <p id="versionPickerError" class="version-picker-error hidden"></p>
+      <div class="choice-modal-actions">
+        <button id="versionPickerConfirm" type="button">Publish this version</button>
+        <button id="versionPickerCancel" type="button" class="secondary">Cancel</button>
+      </div>
+    </section>
+  </div>
+
   <div id="choiceModalBackdrop" class="modal-backdrop hidden" role="presentation">
     <section
       id="choiceModal"
