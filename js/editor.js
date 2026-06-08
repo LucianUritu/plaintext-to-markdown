@@ -53,7 +53,7 @@ export function getEditorElements() {
     choiceModalTitle: document.getElementById("choiceModalTitle"),
     choiceModalMessage: document.getElementById("choiceModalMessage"),
     choiceModalActions: document.getElementById("choiceModalActions"),
-    choiceModalCloseButton: document.getElementById("choiceModalCloseButton")
+    choiceModalCloseButton: document.getElementById("choiceModalCloseButton"),
       
     //added version picker modal elements
     versionPickerBackdrop: document.getElementById("versionPickerBackdrop"),
