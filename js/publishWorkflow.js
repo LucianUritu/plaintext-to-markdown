@@ -7,6 +7,8 @@ import {
   formatPublishValidationErrors,
   validateBookForPublish
 } from "./publishValidation.js";
+//added
+import { versionToBranchName } from "./versionManager.js";
 
 export class PublishWorkflow {
   constructor({
@@ -16,6 +18,7 @@ export class PublishWorkflow {
     rememberPublishConnection,
     saveActiveEditorContent,
     askChoice,
+    askVersionLabel,
     publishProgress,
     setStatus,
     showPublishResult
@@ -26,6 +29,7 @@ export class PublishWorkflow {
     this.rememberPublishConnection = rememberPublishConnection;
     this.saveActiveEditorContent = saveActiveEditorContent;
     this.askChoice = askChoice;
+    this.askVersionLabel = askVersionLabel;
     this.publishProgress = publishProgress;
     this.setStatus = setStatus;
     this.showPublishResult = showPublishResult;
@@ -51,7 +55,21 @@ export class PublishWorkflow {
       return;
     }
 
-    const publishTarget = this.getPublishTarget();
+     const suggestedVersion = currentBook.lastPublishedVersion || "";
+    const versionLabel = await this.askVersionLabel({ suggestedVersion });
+
+    if (!versionLabel) {
+      this.setStatus("Publish cancelled.");
+      return;
+    }
+
+    const versionBranch = versionToBranchName(versionLabel);
+    const baseTarget = this.getPublishTarget();
+    const publishTarget = {
+      owner: baseTarget.owner,
+      repo: baseTarget.repo,
+      branch: versionBranch
+    };
     let activeProgressStep = "repository";
     this.publishProgress.reset();
     this.publishProgress.activate(activeProgressStep);
@@ -67,7 +85,7 @@ export class PublishWorkflow {
     try {
       this.setPublishBusy(true, "Uploading...");
       this.elements.publishResult.classList.add("hidden");
-      this.setStatus("Uploading TeachBooks files to GitHub...", 0);
+      this.setStatus("Uploading TeachBooks files to GitHub (" + versionBranch + ")...", 0);
       this.publishProgress.complete("repository");
       activeProgressStep = "pages";
       this.publishProgress.activate(activeProgressStep);
@@ -81,6 +99,7 @@ export class PublishWorkflow {
       );
 
       this.rememberPublishConnection(result.repository);
+      currentBook.lastPublishedVersion = versionLabel;
       this.publishProgress.complete("pages");
       this.publishProgress.complete("upload");
       activeProgressStep = "action";
@@ -99,7 +118,7 @@ export class PublishWorkflow {
       this.publishProgress.hideAfter(30000);
       this.showPublishResult(
         result.pagesUrl,
-        "Files updated successfully. The real TeachBooks book preview is ready."
+        "Version " + versionLabel + " published. The TeachBooks book preview is ready."
       );
     } catch (error) {
       if (error.code === "REPOSITORY_EXISTS") {
