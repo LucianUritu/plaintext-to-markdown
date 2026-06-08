@@ -54,6 +54,15 @@ export function getEditorElements() {
     choiceModalMessage: document.getElementById("choiceModalMessage"),
     choiceModalActions: document.getElementById("choiceModalActions"),
     choiceModalCloseButton: document.getElementById("choiceModalCloseButton")
+
+    //added version picker modal elements
+    versionPickerBackdrop, versionPickerModal, versionPickerInput,
+    versionPickerError, versionPickerConfirm, versionPickerCancel,
+    versionPickerClose, versionPickerPreview,
+
+    //added version history panel elements
+    versionHistoryPanel, versionHistoryList,
+    refreshVersionHistoryButton, versionHistoryError
   };
 }
 
