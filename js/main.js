@@ -139,6 +139,11 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+  function loadImagePreviewUrlsFromCurrentBook() {
+    clearImagePreviewUrls();
+    refreshImagePreviewUrls();
+  }
+
   function saveImageToCurrentBook(image) {
     if (!currentBook) {
       return;
@@ -457,7 +462,7 @@ document.addEventListener("DOMContentLoaded", function () {
       currentBook.lastPublishedVersion = entry.version;
       saveBook(currentBook);
       setEditorInactive();
-      clearImagePreviewUrls();
+      loadImagePreviewUrlsFromCurrentBook();
       hidePublishResult();
       navigateToBookView();
       setStatus("Now editing version " + entry.version + ".");
@@ -468,7 +473,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   const githubBooksController = new GitHubBooksController({
     elements,
-    clearImagePreviewUrls,
+    clearImagePreviewUrls: loadImagePreviewUrlsFromCurrentBook,
     renderBookView: navigateToBookView,
     setCurrentBook,
     setEditorInactive,

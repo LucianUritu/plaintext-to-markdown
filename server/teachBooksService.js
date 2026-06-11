@@ -65,6 +65,17 @@ class TeachBooksService {
       branch,
       tocText
     });
+    const images = await this.loadImages({
+      owner,
+      repoName,
+      branch,
+      sections: [
+        {
+          content: introDocument.content
+        },
+        ...chapters
+      ]
+    });
 
     return {
       id: "github:" + owner + "/" + repoName,
@@ -78,7 +89,7 @@ class TeachBooksService {
         content: introDocument.content
       },
       chapters: chapters.length > 0 ? chapters : [createFallbackChapter()],
-      images: [],
+      images,
       activeChapterId: null,
       activeItemType: "introduction"
     };
@@ -238,6 +249,37 @@ class TeachBooksService {
 
     return chapters;
   }
+
+  async loadImages({ owner, repoName, branch, sections }) {
+    const imagePaths = collectLocalImagePaths(sections);
+    const images = [];
+
+    for (const imagePath of imagePaths) {
+      const imageFile = await this.githubClient.fetchRepositoryFile({
+        owner,
+        repo: repoName,
+        branch,
+        path: "book/" + imagePath
+      });
+
+      if (!imageFile || !imageFile.content) {
+        continue;
+      }
+
+      images.push({
+        path: imagePath,
+        name: imagePath.split("/").pop(),
+        type: inferImageMimeType(imagePath),
+        dataUrl:
+          "data:" +
+          inferImageMimeType(imagePath) +
+          ";base64," +
+          String(imageFile.content || "").replace(/\s/g, "")
+      });
+    }
+
+    return images;
+  }
 }
 
 function createFallbackChapter() {
@@ -266,6 +308,57 @@ function createPagesUrl({ owner, repoName, branch }) {
   }
 
   return baseUrl;
+}
+
+function collectLocalImagePaths(sections) {
+  const imagePaths = new Set();
+
+  sections.forEach(function (section) {
+    const content = String((section && section.content) || "");
+    const imagePattern = /!\[[^\]]*]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
+    let match = imagePattern.exec(content);
+
+    while (match) {
+      const imagePath = normalizeLocalImagePath(match[1]);
+
+      if (imagePath) {
+        imagePaths.add(imagePath);
+      }
+
+      match = imagePattern.exec(content);
+    }
+  });
+
+  return Array.from(imagePaths);
+}
+
+function normalizeLocalImagePath(path) {
+  const normalizedPath = String(path || "").replace(/\\/g, "/").trim();
+
+  if (
+    !normalizedPath ||
+    /^(https?:|data:image\/)/i.test(normalizedPath) ||
+    normalizedPath.startsWith("/") ||
+    normalizedPath.includes("../")
+  ) {
+    return "";
+  }
+
+  return normalizedPath.replace(/^book\//, "").replace(/^chapters\//, "");
+}
+
+function inferImageMimeType(path) {
+  const extension = String(path || "").split(".").pop().toLowerCase();
+  const mimeTypes = {
+    gif: "image/gif",
+    jpeg: "image/jpeg",
+    jpg: "image/jpeg",
+    png: "image/png",
+    svg: "image/svg+xml",
+    webp: "image/webp"
+  };
+
+  return mimeTypes[extension] || "image/png";
 }
 
 module.exports = {
