@@ -20,7 +20,8 @@ export function formatPublishValidationErrors(errors) {
     "Please fix these before publishing:\n\n" +
     errors.map(function (error) {
       return "- " + error;
-    }).join("\n")
+    }).join("\n") +
+    "\n\nWhat to do next:\nFix the items above, then publish again."
   );
 }
 

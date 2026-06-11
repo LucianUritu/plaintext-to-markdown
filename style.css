@@ -720,7 +720,8 @@ pre {
 /* Publish messages */
 
 .publish-message {
-  margin-top: 24px;
+  width: min(760px, 100%);
+  margin: 24px auto 0;
   padding: 20px;
   border: 1px solid #fecaca;
   border-left: 4px solid #dc2626;
@@ -752,8 +753,7 @@ pre {
 
 .publish-message-body {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
+  gap: 16px;
   margin-top: 18px;
 }
 
@@ -767,6 +767,18 @@ pre {
   margin: 0;
   color: #4b5563;
   line-height: 1.5;
+}
+
+.publish-message-list {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding-left: 20px;
+  color: #374151;
+}
+
+.publish-message-list li {
+  line-height: 1.45;
 }
 
 .publish-message-details {
@@ -943,7 +955,6 @@ pre {
   .github-books-header,
   .github-book-card,
   .editor-topbar,
-  .publish-message-body,
   .publish-url-row {
     flex-direction: column;
     align-items: stretch;

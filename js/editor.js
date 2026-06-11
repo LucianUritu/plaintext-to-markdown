@@ -47,6 +47,7 @@ export function getEditorElements() {
     publishMessagePanel: document.getElementById("publishMessagePanel"),
     publishMessageTitle: document.getElementById("publishMessageTitle"),
     publishMessageWhat: document.getElementById("publishMessageWhat"),
+    publishMessageList: document.getElementById("publishMessageList"),
     publishMessageNext: document.getElementById("publishMessageNext"),
     publishMessageDetails: document.getElementById("publishMessageDetails"),
     publishMessageTechnical: document.getElementById("publishMessageTechnical"),

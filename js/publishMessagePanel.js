@@ -13,6 +13,7 @@ export class PublishMessagePanel {
     this.elements.publishMessageTitle.textContent = parsedMessage.title;
     this.elements.publishMessageWhat.textContent = parsedMessage.whatHappened;
     this.elements.publishMessageNext.textContent = parsedMessage.nextStep;
+    this.renderIssues(parsedMessage.issues);
 
     if (parsedMessage.technical) {
       this.elements.publishMessageTechnical.textContent = parsedMessage.technical;
@@ -32,6 +33,23 @@ export class PublishMessagePanel {
   hide() {
     this.elements.publishMessagePanel.classList.add("hidden");
   }
+
+  renderIssues(issues) {
+    this.elements.publishMessageList.innerHTML = "";
+
+    if (!issues.length) {
+      this.elements.publishMessageList.classList.add("hidden");
+      return;
+    }
+
+    issues.forEach((issue) => {
+      const item = document.createElement("li");
+      item.textContent = issue;
+      this.elements.publishMessageList.appendChild(item);
+    });
+
+    this.elements.publishMessageList.classList.remove("hidden");
+  }
 }
 
 function parsePublishMessage(message) {
@@ -46,12 +64,45 @@ function parsePublishMessage(message) {
     title,
     whatHappened:
       readSection(lines, "What happened:") ||
+      readIntroBeforeBullets(lines) ||
       "The book could not be published.",
     nextStep:
       readSection(lines, "What to do next:") ||
       "Review the issue and try publishing again.",
-    technical: readSection(lines, "Technical details:")
+    technical: readSection(lines, "Technical details:"),
+    issues: readBulletItems(lines)
   };
+}
+
+function readIntroBeforeBullets(lines) {
+  const introLines = [];
+
+  for (let index = 1; index < lines.length; index += 1) {
+    const line = lines[index];
+
+    if (!line) {
+      continue;
+    }
+
+    if (line.startsWith("- ")) {
+      break;
+    }
+
+    introLines.push(line);
+  }
+
+  return introLines.join(" ");
+}
+
+function readBulletItems(lines) {
+  return lines
+    .filter(function (line) {
+      return line.startsWith("- ");
+    })
+    .map(function (line) {
+      return line.slice(2).trim();
+    })
+    .filter(Boolean);
 }
 
 function readSection(lines, heading) {
