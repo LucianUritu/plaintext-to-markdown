@@ -2,17 +2,17 @@ export async function loadGitHubAuthState() {
   const response = await fetch("/api/me");
 
   if (!response.ok) {
-    throw new Error("GitHub auth is not available.");
+    throw await createApiError(response, "GitHub auth is not available.");
   }
 
   return response.json();
 }
-// test
+
 export async function loadGitHubBooks() {
   const response = await fetch("/api/books");
 
   if (!response.ok) {
-    throw new Error("Could not load GitHub books.");
+    throw await createApiError(response, "Could not load GitHub books.");
   }
 
   return response.json();
@@ -29,7 +29,7 @@ export async function loadGitHubBook(book) {
   );
 
   if (!response.ok) {
-    throw new Error("Could not open GitHub book.");
+    throw await createApiError(response, "Could not open GitHub book.");
   }
 
   return response.json();
@@ -88,6 +88,16 @@ async function readJsonResponse(response) {
       error: "The app server returned an unexpected response."
     };
   }
+}
+
+async function createApiError(response, fallbackMessage) {
+  const result = await readJsonResponse(response);
+  const error = new Error(result.error || fallbackMessage);
+
+  error.status = response.status;
+  error.code = result.code || "";
+
+  return error;
 }
 
 export async function loadVersionBranches({ owner, repo }) {

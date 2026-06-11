@@ -22,6 +22,7 @@ const sessionSecret =
   process.env.SESSION_SECRET || "development-session-secret-change-me";
 
 const sessionStore = createSessionStore(sessionSecret, {
+  secureCookie: appBaseUrl.startsWith("https://"),
   sessionMaxAgeSeconds: Number(process.env.SESSION_MAX_AGE_SECONDS || 60 * 60 * 8)
 });
 const serveStaticFile = createStaticFileServer(rootDirectory);

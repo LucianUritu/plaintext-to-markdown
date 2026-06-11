@@ -22,6 +22,7 @@ export class GitHubBooksController {
     this.setCurrentBook = setCurrentBook;
     this.setEditorInactive = setEditorInactive;
     this.setStatus = setStatus;
+    this.isOpeningBook = false;
   }
 
   async loadAuthState() {
@@ -63,12 +64,22 @@ export class GitHubBooksController {
       const result = await loadGitHubBooks();
       this.renderBooks(result.books || []);
     } catch (error) {
+      if (this.handleExpiredSession(error)) {
+        return;
+      }
+
       this.elements.githubBooksList.innerHTML =
         '<p class="github-books-message">Could not load GitHub books.</p>';
     }
   }
 
   async openBook(book) {
+    if (this.isOpeningBook) {
+      return;
+    }
+
+    this.isOpeningBook = true;
+    this.setBookActionsDisabled(true);
     this.setStatus("Opening " + book.title + " from GitHub...");
 
     try {
@@ -82,8 +93,14 @@ export class GitHubBooksController {
       this.renderBookView();
       this.setStatus("Opened " + currentBook.title + " from GitHub.");
     } catch (error) {
-      console.error(error);
+      if (this.handleExpiredSession(error)) {
+        return;
+      }
+
       this.setStatus("Could not open GitHub book.");
+    } finally {
+      this.isOpeningBook = false;
+      this.setBookActionsDisabled(false);
     }
   }
 
@@ -149,5 +166,25 @@ export class GitHubBooksController {
     } catch (error) {
       this.setStatus("Could not sign out of GitHub.");
     }
+  }
+
+  handleExpiredSession(error) {
+    if (!error || error.status !== 401) {
+      return false;
+    }
+
+    this.renderAuthState({
+      authenticated: false
+    });
+    this.setStatus("GitHub session expired. Please sign in again.");
+    return true;
+  }
+
+  setBookActionsDisabled(isDisabled) {
+    this.elements.githubBooksList
+      .querySelectorAll('[data-action="edit-github-book"]')
+      .forEach(function (button) {
+        button.disabled = isDisabled;
+      });
   }
 }

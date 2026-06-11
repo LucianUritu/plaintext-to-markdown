@@ -7,6 +7,7 @@ function createSessionStore(sessionSecret, options = {}) {
   const sessionMaxAgeSeconds =
     Number(options.sessionMaxAgeSeconds) || defaultSessionMaxAgeSeconds;
   const sessionMaxAgeMilliseconds = sessionMaxAgeSeconds * 1000;
+  const secureCookie = Boolean(options.secureCookie);
 
   function getOrCreateSession(request, response) {
     const existingSession = getSessionFromRequest(request);
@@ -114,13 +115,19 @@ function createSessionStore(sessionSecret, options = {}) {
   }
 
   function createSessionCookie(sessionId) {
-    return [
+    const attributes = [
       "bookPlatformSession=" + sessionId + "." + signValue(sessionId),
       "Path=/",
       "HttpOnly",
       "SameSite=Lax",
       "Max-Age=" + sessionMaxAgeSeconds
-    ].join("; ");
+    ];
+
+    if (secureCookie) {
+      attributes.push("Secure");
+    }
+
+    return attributes.join("; ");
   }
 
   function createExpiredSessionCookie() {
