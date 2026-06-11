@@ -167,6 +167,34 @@
       </ol>
     </section>
 
+    <section id="publishMessagePanel" class="publish-message hidden" aria-live="assertive">
+      <div class="publish-message-header">
+        <div>
+          <p class="publish-message-kicker">Publishing issue</p>
+          <h2 id="publishMessageTitle"></h2>
+        </div>
+        <button id="publishMessageClose" class="icon-button" type="button" aria-label="Dismiss publishing message">
+          &times;
+        </button>
+      </div>
+
+      <div class="publish-message-body">
+        <div>
+          <h3>What happened</h3>
+          <p id="publishMessageWhat"></p>
+        </div>
+        <div>
+          <h3>What to do next</h3>
+          <p id="publishMessageNext"></p>
+        </div>
+      </div>
+
+      <details id="publishMessageDetails" class="publish-message-details hidden">
+        <summary>Technical details</summary>
+        <pre id="publishMessageTechnical"></pre>
+      </details>
+    </section>
+
     <div id="publishResult" class="publish-result hidden">
       <p id="publishResultMessage">
         Files updated successfully. The real TeachBooks book preview is ready.

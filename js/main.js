@@ -30,6 +30,7 @@ import { setupImageHandler } from "./imageHandler.js";
 import { plainTextToMarkdown } from "./markdownConverter.js";
 import { markdownToHtml } from "./markdownRenderer.js";
 import { PublishProgress } from "./publishProgress.js";
+import { PublishMessagePanel } from "./publishMessagePanel.js";
 import { PublishWorkflow } from "./publishWorkflow.js";
 import { setupEditorShortcuts } from "./shortcuts.js";
 import { escapeHtml } from "./utils.js";
@@ -42,6 +43,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const choiceModal = new ChoiceModal(elements);
   const versionPickerModal = new VersionPickerModal(elements);
   const publishProgress = new PublishProgress(elements);
+  const publishMessagePanel = new PublishMessagePanel(elements);
   const versionHistoryPanel = new VersionHistoryPanel({
     elements,
     getCurrentBook: function () {
@@ -449,6 +451,7 @@ document.addEventListener("DOMContentLoaded", function () {
       return versionPickerModal.ask(options);
     },
     publishProgress,
+    publishMessagePanel,
     setStatus,
     showPublishResult
   });

@@ -19,6 +19,7 @@ export class PublishWorkflow {
     askChoice,
     askVersionLabel,
     publishProgress,
+    publishMessagePanel,
     setStatus,
     showPublishResult
   }) {
@@ -30,6 +31,7 @@ export class PublishWorkflow {
     this.askChoice = askChoice;
     this.askVersionLabel = askVersionLabel;
     this.publishProgress = publishProgress;
+    this.publishMessagePanel = publishMessagePanel;
     this.setStatus = setStatus;
     this.showPublishResult = showPublishResult;
   }
@@ -50,7 +52,7 @@ export class PublishWorkflow {
       this.elements.publishResult.classList.add("hidden");
       this.publishProgress.hide();
       this.setStatus("Publish blocked. Fix the book issues first.");
-      alert(formatPublishValidationErrors(validation.errors));
+      this.showPublishMessage(formatPublishValidationErrors(validation.errors));
       return;
     }
 
@@ -127,7 +129,7 @@ export class PublishWorkflow {
       console.error(error);
       this.publishProgress.fail(activeProgressStep);
       this.setStatus("Publish failed.");
-      alert(formatPublishError(error));
+      this.showPublishMessage(formatPublishError(error));
     } finally {
       this.setPublishBusy(false);
     }
@@ -209,9 +211,17 @@ export class PublishWorkflow {
       console.error(overwriteError);
       this.publishProgress.fail(activeProgressStep);
       this.setStatus("Publish failed.");
-      alert(formatPublishError(overwriteError));
+      this.showPublishMessage(formatPublishError(overwriteError));
     } finally {
       this.setPublishBusy(false);
+    }
+  }
+
+  showPublishMessage(message) {
+    this.elements.publishResult.classList.add("hidden");
+
+    if (this.publishMessagePanel) {
+      this.publishMessagePanel.show(message);
     }
   }
 
