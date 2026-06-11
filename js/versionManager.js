@@ -7,12 +7,16 @@ export class VersionBranchNaming {
     if (typeof version !== "string") return false;
 
     const trimmed = version.trim();
+    const branchName = this.toBranchName(trimmed);
+    const slug = branchName.slice(this.prefix.length);
 
     if (!trimmed) return false;
     if (/^(main|master)$/i.test(trimmed)) return false;
     if (trimmed.length > 64) return false;
+    if (!slug) return false;
+    if (/^(main|master)$/i.test(slug)) return false;
 
-    return /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(trimmed);
+    return /^[a-z0-9][a-z0-9._-]*$/.test(slug);
   }
 
   toBranchName(version) {
