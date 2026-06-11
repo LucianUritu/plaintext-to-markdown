@@ -3,9 +3,15 @@ import { escapeHtml } from "./utils.js";
 
 export class VersionHistoryPanel {
 
-  constructor({ elements, getCurrentBook, setStatus = function () {} }) {
+  constructor({
+    elements,
+    getCurrentBook,
+    onUseVersion = function () {},
+    setStatus = function () {}
+  }) {
     this.elements = elements;
     this.getCurrentBook = getCurrentBook;
+    this.onUseVersion = onUseVersion;
     this.setStatus = setStatus;
     this.isLoading = false;
 
@@ -76,14 +82,20 @@ export class VersionHistoryPanel {
     this.elements.versionHistoryList.innerHTML = "";
 
     versions.forEach((entry, index) => {
-      const card = this.buildVersionCard(entry, index === 0);
+      const card = this.buildVersionCard(entry, {
+        isLatest: index === 0,
+        isActive: entry.branch === resolveActiveBranch(this.getCurrentBook())
+      });
       this.elements.versionHistoryList.appendChild(card);
     });
   }
   
-  buildVersionCard(entry, isLatest) {
+  buildVersionCard(entry, { isLatest, isActive }) {
     const card = document.createElement("article");
-    card.className = "version-card" + (isLatest ? " version-card--latest" : "");
+    card.className =
+      "version-card" +
+      (isLatest ? " version-card--latest" : "") +
+      (isActive ? " version-card--active" : "");
 
     const formattedDate = entry.committedAt
       ? formatDate(entry.committedAt)
@@ -103,14 +115,22 @@ export class VersionHistoryPanel {
             escapeHtml(formattedDate) +
           "</p>" +
         "</div>" +
-        (isLatest
-          ? '<span class="version-card__badge">Latest</span>'
-          : "") +
+        '<div class="version-card__badges">' +
+          (isActive
+            ? '<span class="version-card__badge version-card__badge--active">Editing</span>'
+            : "") +
+          (isLatest
+            ? '<span class="version-card__badge">Latest</span>'
+            : "") +
+        "</div>" +
       "</div>" +
       '<div class="version-card__actions">' +
         '<a class="version-card__open" href="' +
           escapeHtml(entry.pagesUrl) +
           '" target="_blank" rel="noopener noreferrer">Open</a>' +
+        (isActive
+          ? '<button class="version-card__use secondary" type="button" disabled>Editing</button>'
+          : '<button class="version-card__use secondary" type="button">Use for editing</button>') +
         '<button class="version-card__copy secondary" type="button">Copy link</button>' +
       "</div>" +
       '<details class="version-card__details">' +
@@ -131,6 +151,14 @@ export class VersionHistoryPanel {
       .addEventListener("click", () => {
         this.copyVersionLink(entry.pagesUrl);
       });
+
+    const useButton = card.querySelector(".version-card__use");
+
+    if (useButton && !isActive) {
+      useButton.addEventListener("click", () => {
+        this.onUseVersion(entry);
+      });
+    }
 
     return card;
   }
@@ -164,6 +192,20 @@ function resolveOwnerRepo(book) {
   }
 
   return { owner: "", repo: "" };
+}
+
+function resolveActiveBranch(book) {
+  if (!book) return "";
+
+  if (book.source === "github" && book.branch) {
+    return book.branch;
+  }
+
+  if (book.githubRepository && book.githubRepository.branch) {
+    return book.githubRepository.branch;
+  }
+
+  return "";
 }
 
 function formatDate(isoString) {

@@ -462,11 +462,23 @@ pre {
   background: #f8fbff;
 }
 
+.version-card--active {
+  border-color: #86efac;
+  background: #f7fdf9;
+}
+
 .version-card__header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+}
+
+.version-card__badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .version-card__label {
@@ -492,6 +504,11 @@ pre {
   font-weight: 700;
 }
 
+.version-card__badge--active {
+  background: #dcfce7;
+  color: #15803d;
+}
+
 .version-card__actions {
   display: flex;
   gap: 10px;
@@ -500,6 +517,7 @@ pre {
 }
 
 .version-card__open,
+.version-card__use,
 .version-card__copy {
   min-height: 38px;
   display: inline-flex;
@@ -510,6 +528,11 @@ pre {
   font-size: 14px;
   font-weight: 700;
   text-decoration: none;
+}
+
+.version-card__use:disabled {
+  cursor: default;
+  opacity: 0.8;
 }
 
 .version-card__open {

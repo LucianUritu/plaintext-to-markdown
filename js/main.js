@@ -25,6 +25,7 @@ import { ChoiceModal } from "./choiceModal.js";
 import { AppNavigation } from "./appNavigation.js";
 import { exampleText } from "./examples.js";
 import { copyMarkdown, downloadMarkdown } from "./fileActions.js";
+import { loadGitHubBook } from "./githubApi.js";
 import { GitHubBooksController } from "./githubBooksController.js";
 import { setupImageHandler } from "./imageHandler.js";
 import { plainTextToMarkdown } from "./markdownConverter.js";
@@ -48,6 +49,9 @@ document.addEventListener("DOMContentLoaded", function () {
     elements,
     getCurrentBook: function () {
       return currentBook;
+    },
+    onUseVersion: function (entry) {
+      usePublishedVersion(entry);
     },
     setStatus: function (message) {
       setStatus(message);
@@ -429,6 +433,37 @@ document.addEventListener("DOMContentLoaded", function () {
     publishResultTimer = setTimeout(function () {
       hidePublishResult();
     }, 120000);
+  }
+
+  async function usePublishedVersion(entry) {
+    const target = getPublishTarget();
+
+    if (!target.owner || !target.repo || !entry.branch) {
+      setStatus("Could not switch version.");
+      return;
+    }
+
+    saveActiveEditorContent();
+    setStatus("Opening version " + entry.version + "...", 0);
+
+    try {
+      const result = await loadGitHubBook({
+        owner: target.owner,
+        repo: target.repo,
+        branch: entry.branch
+      });
+
+      currentBook = result.book;
+      currentBook.lastPublishedVersion = entry.version;
+      saveBook(currentBook);
+      setEditorInactive();
+      clearImagePreviewUrls();
+      hidePublishResult();
+      navigateToBookView();
+      setStatus("Now editing version " + entry.version + ".");
+    } catch (error) {
+      setStatus("Could not open that published version.");
+    }
   }
 
   const githubBooksController = new GitHubBooksController({
