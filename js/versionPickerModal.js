@@ -79,7 +79,7 @@ export class VersionPickerModal {
 
     if (!isValidVersionLabel(raw)) {
       this._showError(
-        "Please enter a valid version label. " +
+        "Please enter a valid version name. " +
         "Use only letters, numbers, dots, and hyphens (e.g. 1.0 or chapter-3-draft). " +
         '"main" and "master" are not allowed.'
       );

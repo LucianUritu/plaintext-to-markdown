@@ -46,6 +46,9 @@ document.addEventListener("DOMContentLoaded", function () {
     elements,
     getCurrentBook: function () {
       return currentBook;
+    },
+    setStatus: function (message) {
+      setStatus(message);
     }
   });
   

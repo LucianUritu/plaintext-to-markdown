@@ -413,6 +413,151 @@ pre {
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
 }
 
+/* Published versions */
+
+.version-history-panel {
+  margin-top: 22px;
+  padding: 22px 24px;
+  background: #ffffff;
+  border: 1px solid #d9dee7;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
+.version-history-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.version-history-header h2 {
+  margin: 0 0 4px;
+  color: #111827;
+  font-size: 22px;
+}
+
+.version-history-header p,
+.version-history-message {
+  margin: 0;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.version-history-list {
+  display: grid;
+  gap: 12px;
+}
+
+.version-card {
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.version-card--latest {
+  border-color: #93c5fd;
+  background: #f8fbff;
+}
+
+.version-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.version-card__label {
+  margin: 0;
+  color: #111827;
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.version-card__date {
+  margin: 4px 0 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.version-card__badge {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.version-card__actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.version-card__open,
+.version-card__copy {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.version-card__open {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.version-card__details {
+  margin-top: 12px;
+  color: #4b5563;
+  font-size: 13px;
+}
+
+.version-card__details summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.version-card__meta {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 0;
+}
+
+.version-card__meta div {
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.version-card__meta dt {
+  color: #6b7280;
+  font-weight: 700;
+}
+
+.version-card__meta dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-family: Consolas, Monaco, monospace;
+}
+
+.version-history-error {
+  margin: 0 0 12px;
+  color: #b91c1c;
+  font-weight: 700;
+}
+
 /* Chapter editor */
 
 .editor-topbar {
@@ -654,6 +799,7 @@ pre {
   header,
   .book-header,
   .book-actions,
+  .version-history-header,
   .github-books-header,
   .github-book-card,
   .editor-topbar,

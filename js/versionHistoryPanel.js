@@ -3,9 +3,10 @@ import { escapeHtml } from "./utils.js";
 
 export class VersionHistoryPanel {
 
-  constructor({ elements, getCurrentBook }) {
+  constructor({ elements, getCurrentBook, setStatus = function () {} }) {
     this.elements = elements;
     this.getCurrentBook = getCurrentBook;
+    this.setStatus = setStatus;
     this.isLoading = false;
 
     this.elements.refreshVersionHistoryButton.addEventListener("click", () => {
@@ -38,7 +39,7 @@ export class VersionHistoryPanel {
 
     try {
       const versions = await loadVersionHistory({ owner, repo });
-      this.renderVersions(versions, owner, repo);
+      this.renderVersions(versions);
     } catch (error) {
       this.renderError(error.message || "Could not load version history.");
     } finally {
@@ -64,13 +65,11 @@ export class VersionHistoryPanel {
     this.elements.versionHistoryError.classList.remove("hidden");
   }
 
-  renderVersions(versions, owner, repo) {
+  renderVersions(versions) {
     this.elements.versionHistoryError.classList.add("hidden");
 
     if (versions.length === 0) {
-      this.renderEmpty(
-        "No published versions yet. Publish a version to see it here."
-      );
+      this.renderEmpty("No published versions yet. Publish a version to save a shareable snapshot.");
       return;
     }
 
@@ -88,7 +87,7 @@ export class VersionHistoryPanel {
 
     const formattedDate = entry.committedAt
       ? formatDate(entry.committedAt)
-      : "Date unknown";
+      : "Publication date unknown";
 
     const shortSha = entry.commitSha
       ? entry.commitSha.slice(0, 7)
@@ -96,31 +95,53 @@ export class VersionHistoryPanel {
 
     card.innerHTML =
       '<div class="version-card__header">' +
-        '<span class="version-card__label">' +
+        '<div>' +
+          '<h3 class="version-card__label">' +
           escapeHtml(entry.version) +
-          (isLatest
-            ? ' <span class="version-card__badge">Latest</span>'
-            : "") +
-        "</span>" +
-        '<span class="version-card__date">' +
-          escapeHtml(formattedDate) +
-        "</span>" +
-      "</div>" +
-      '<div class="version-card__meta">' +
-        '<span class="version-card__branch">' +
-          escapeHtml(entry.branch) +
-        "</span>" +
-        (shortSha
-          ? ' <span class="version-card__sha">' + escapeHtml(shortSha) + "</span>"
+          "</h3>" +
+          '<p class="version-card__date">Published ' +
+            escapeHtml(formattedDate) +
+          "</p>" +
+        "</div>" +
+        (isLatest
+          ? '<span class="version-card__badge">Latest</span>'
           : "") +
       "</div>" +
       '<div class="version-card__actions">' +
         '<a class="version-card__open" href="' +
           escapeHtml(entry.pagesUrl) +
-          '" target="_blank" rel="noopener noreferrer">Open published version</a>' +
-      "</div>";
+          '" target="_blank" rel="noopener noreferrer">Open</a>' +
+        '<button class="version-card__copy secondary" type="button">Copy link</button>' +
+      "</div>" +
+      '<details class="version-card__details">' +
+        "<summary>Technical details</summary>" +
+        '<dl class="version-card__meta">' +
+          "<div>" +
+            "<dt>Branch</dt>" +
+            "<dd>" + escapeHtml(entry.branch) + "</dd>" +
+          "</div>" +
+          (shortSha
+            ? "<div><dt>Commit</dt><dd>" + escapeHtml(shortSha) + "</dd></div>"
+            : "") +
+        "</dl>" +
+      "</details>";
+
+    card
+      .querySelector(".version-card__copy")
+      .addEventListener("click", () => {
+        this.copyVersionLink(entry.pagesUrl);
+      });
 
     return card;
+  }
+
+  async copyVersionLink(url) {
+    try {
+      await navigator.clipboard.writeText(url);
+      this.setStatus("Published version link copied.");
+    } catch (error) {
+      this.setStatus("Could not copy the link automatically.");
+    }
   }
 }
 
