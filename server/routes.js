@@ -189,7 +189,7 @@ function createRoutes({
       });
 
       if (result.error) {
-        sendJson(response, result.code === "REPOSITORY_EXISTS" ? 409 : 400, {
+        sendJson(response, isConflictError(result.code) ? 409 : 400, {
           error: result.error,
           code: result.code,
           repository: result.repository
@@ -392,6 +392,10 @@ function cleanInput(value) {
 
 function normalizeRepositoryVisibility(value) {
   return value === "private" ? "private" : "public";
+}
+
+function isConflictError(code) {
+  return code === "REPOSITORY_EXISTS" || code === "VERSION_EXISTS";
 }
 
 module.exports = {

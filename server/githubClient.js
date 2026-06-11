@@ -595,6 +595,7 @@ function createGitHubClient(token) {
     fetchRepositoryFile,
     fetchRepos,
     findWorkflowRunForCommit,
+    getBranch,
     getCommitBySha,
     getDefaultBranch,
     getCurrentUser,

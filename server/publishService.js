@@ -56,7 +56,6 @@ class PublishService {
       if (existingRepository) {
         targetOwner = currentUser.user.login;
         targetRepo = repositoryName;
-        targetBranch = existingRepository.default_branch || targetBranch;
       } else {
         createdRepository = await this.githubClient.createRepository({
           name: repositoryName,
@@ -77,7 +76,6 @@ class PublishService {
 
         targetOwner = createdRepository.owner.login;
         targetRepo = createdRepository.name;
-        targetBranch = createdRepository.default_branch || targetBranch;
       }
     }
 
@@ -94,6 +92,29 @@ class PublishService {
       return {
         error: "No files were provided for publishing."
       };
+    }
+
+    if (isVersionBranch(targetBranch)) {
+      const existingVersionBranch = await this.githubClient.getBranch({
+        owner: targetOwner,
+        repo: targetRepo,
+        branch: targetBranch
+      });
+
+      if (existingVersionBranch) {
+        return {
+          error:
+            "A published version named \"" +
+            branchNameToVersionName(targetBranch) +
+            "\" already exists.",
+          code: "VERSION_EXISTS",
+          repository: {
+            owner: targetOwner,
+            repo: targetRepo,
+            branch: targetBranch
+          }
+        };
+      }
     }
 
     await this.githubClient.ensurePagesSite({
@@ -153,3 +174,13 @@ class PublishService {
 module.exports = {
   PublishService
 };
+
+function isVersionBranch(branch) {
+  return String(branch || "").startsWith("version/");
+}
+
+function branchNameToVersionName(branch) {
+  return String(branch || "")
+    .replace(/^version\//, "")
+    .replace(/-/g, " ");
+}

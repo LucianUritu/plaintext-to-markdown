@@ -7,6 +7,17 @@ export function formatPublishError(error) {
     return formatWorkflowFailure(workflowRun);
   }
 
+  if (error && error.code === "VERSION_EXISTS") {
+    return buildMessage({
+      title: "That version already exists.",
+      whatHappened:
+        "A published version with this name already exists for this book.",
+      nextStep:
+        "Choose a different version name, for example \"second draft\" or \"2026 edition\".",
+      technical: message
+    });
+  }
+
   if (status === 401 || /sign in|bad credentials|unauthorized/i.test(message)) {
     return buildMessage({
       title: "GitHub is not connected.",
