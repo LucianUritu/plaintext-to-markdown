@@ -22,6 +22,7 @@ import {
 } from "./editor.js";
 
 import { ChoiceModal } from "./choiceModal.js";
+import { AppNavigation } from "./appNavigation.js";
 import { exampleText } from "./examples.js";
 import { copyMarkdown, downloadMarkdown } from "./fileActions.js";
 import { GitHubBooksController } from "./githubBooksController.js";
@@ -59,6 +60,12 @@ document.addEventListener("DOMContentLoaded", function () {
     elements.bookView,
     elements.editorView
   ];
+  const navigation = new AppNavigation({
+    applyState: applyNavigationState,
+    getFallbackState: function () {
+      return { view: "home" };
+    }
+  });
 
   function setStatus(message, duration) {
     showStatus(elements.statusMessage, message, duration);
@@ -166,7 +173,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function renderBookView() {
     if (!currentBook) {
-      showView(elements.homeView, views);
+      showHomeView();
       return;
     }
 
@@ -183,7 +190,10 @@ document.addEventListener("DOMContentLoaded", function () {
       "</span>";
 
     introductionCard.addEventListener("click", function () {
-      openIntroduction();
+      navigation.navigate({
+        view: "editor",
+        type: "introduction"
+      });
     });
 
     elements.chapterList.appendChild(introductionCard);
@@ -201,7 +211,11 @@ document.addEventListener("DOMContentLoaded", function () {
         "</span>";
 
       chapterCard.addEventListener("click", function () {
-        openChapter(chapter.id);
+        navigation.navigate({
+          view: "editor",
+          type: "chapter",
+          chapterId: chapter.id
+        });
       });
 
       elements.chapterList.appendChild(chapterCard);
@@ -211,9 +225,14 @@ document.addEventListener("DOMContentLoaded", function () {
     versionHistoryPanel.show();
   }
 
-  function openIntroduction() {
+  function showHomeView() {
+    versionHistoryPanel.hide();
+    showView(elements.homeView, views);
+  }
+
+  function openIntroduction({ announce = true } = {}) {
     if (!currentBook) {
-      return;
+      return false;
     }
 
     activeEditorType = "introduction";
@@ -228,8 +247,14 @@ document.addEventListener("DOMContentLoaded", function () {
     elements.plainTextInput.value = currentBook.introduction.content || "";
 
     updateOutputs();
+    versionHistoryPanel.hide();
     showView(elements.editorView, views);
-    setStatus("Introduction opened.");
+
+    if (announce) {
+      setStatus("Introduction opened.");
+    }
+
+    return true;
   }
 
   function openChapter(chapterId) {
@@ -237,7 +262,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (!chapter) {
       setStatus("Could not open chapter.");
-      return;
+      return false;
     }
 
     activeEditorType = "chapter";
@@ -250,7 +275,9 @@ document.addEventListener("DOMContentLoaded", function () {
     elements.plainTextInput.value = chapter.content;
 
     updateOutputs();
+    versionHistoryPanel.hide();
     showView(elements.editorView, views);
+    return true;
   }
 
   function removeChapterFromBook() {
@@ -398,7 +425,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const githubBooksController = new GitHubBooksController({
     elements,
     clearImagePreviewUrls,
-    renderBookView,
+    renderBookView: navigateToBookView,
     setCurrentBook,
     setEditorInactive,
     setStatus
@@ -429,7 +456,7 @@ document.addEventListener("DOMContentLoaded", function () {
     clearImagePreviewUrls();
 
     hidePublishResult();
-    renderBookView();
+    navigateToBookView();
     setStatus("New book created.");
   });
 
@@ -437,7 +464,7 @@ document.addEventListener("DOMContentLoaded", function () {
     hidePublishResult();
     activeChapter = null;
     activeEditorType = null;
-    showView(elements.homeView, views);
+    navigation.navigate({ view: "home" });
   });
 
   elements.bookTitleInput.addEventListener("input", function () {
@@ -492,7 +519,7 @@ document.addEventListener("DOMContentLoaded", function () {
     saveActiveEditorContent();
     activeChapter = null;
     activeEditorType = null;
-    renderBookView();
+    navigation.navigate({ view: "book" });
   });
 
   elements.chapterTitleInput.addEventListener("input", function () {
@@ -567,9 +594,51 @@ document.addEventListener("DOMContentLoaded", function () {
 
   activeChapter = null;
   activeEditorType = null;
-  showView(elements.homeView, views);
+  navigation.start();
 
   githubBooksController.loadAuthState();
+
+  function navigateToBookView() {
+    navigation.navigate({ view: "book" });
+  }
+
+  function applyNavigationState(state) {
+    if (!state || state.view === "home") {
+      setEditorInactive();
+      showHomeView();
+      return;
+    }
+
+    if (!currentBook) {
+      setEditorInactive();
+      navigation.replace({ view: "home" });
+      showHomeView();
+      return;
+    }
+
+    if (state.view === "book") {
+      setEditorInactive();
+      renderBookView();
+      return;
+    }
+
+    if (state.view === "editor" && state.type === "introduction") {
+      openIntroduction({ announce: false });
+      return;
+    }
+
+    if (state.view === "editor" && state.type === "chapter") {
+      if (!openChapter(state.chapterId)) {
+        navigation.replace({ view: "book" });
+        renderBookView();
+      }
+
+      return;
+    }
+
+    navigation.replace({ view: "book" });
+    renderBookView();
+  }
 
   function getCurrentFileName() {
     if (activeEditorType === "introduction") {
