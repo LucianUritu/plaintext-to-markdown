@@ -347,7 +347,7 @@ function createGitHubClient(token) {
     }
 
     return response.json();
-  } //fixed missing return statement
+  }
 
   async function getDefaultBranch({ owner, repo }) {
     const response = await fetch(createRepositoryUrl(owner, repo), {

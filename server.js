@@ -6,6 +6,7 @@ const {
   redirect,
   sendJson
 } = require("./server/httpUtils");
+const { HttpRouter } = require("./server/router");
 const { createRoutes } = require("./server/routes");
 const { createSessionStore } = require("./server/sessionStore");
 
@@ -32,60 +33,27 @@ const routes = createRoutes({
   redirect,
   sendJson
 });
+const router = new HttpRouter();
+
+router.get("/auth/github/start", routes.startGitHubLogin);
+router.get("/auth/github/callback", routes.finishGitHubLogin);
+router.post("/auth/logout", routes.logout);
+router.get("/api/me", routes.getCurrentUser);
+router.get("/api/books", routes.getGitHubBooks);
+router.post("/api/publish-book", routes.publishBookToGitHub);
+router.get("/api/publish-book/status", routes.getPublishWorkflowStatus);
+router.get("/api/github/branches", routes.getVersionBranches);
+router.get("/api/github/commit", routes.getCommitInfo);
+router.getPrefix("/api/books/", routes.getGitHubBook);
 
 const server = http.createServer(async function (request, response) {
   try {
     const url = new URL(request.url, appBaseUrl);
 
-    if (url.pathname === "/auth/github/start") {
-      await routes.startGitHubLogin(request, response);
+    if (await router.handle(request, response, url)) {
       return;
     }
 
-    if (url.pathname === "/auth/github/callback") {
-      await routes.finishGitHubLogin(request, response, url);
-      return;
-    }
-
-    if (url.pathname === "/auth/logout" && request.method === "POST") {
-      routes.logout(request, response);
-      return;
-    }
-
-    if (url.pathname === "/api/me") {
-      await routes.getCurrentUser(request, response);
-      return;
-    }
-
-    if (url.pathname === "/api/books") {
-      await routes.getGitHubBooks(request, response);
-      return;
-    }
-
-    if (url.pathname === "/api/publish-book" && request.method === "POST") {
-      await routes.publishBookToGitHub(request, response);
-      return;
-    }
-
-    if (url.pathname === "/api/publish-book/status") {
-      await routes.getPublishWorkflowStatus(request, response, url);
-      return;
-    }
-
-    if (url.pathname.startsWith("/api/books/")) {
-      await routes.getGitHubBook(request, response, url);
-      return;
-    }
-    
-    if (url.pathname === "/api/github/branches") {
-      await routes.getVersionBranches(request, response, url);
-      return;
-    }
-
-    if (url.pathname === "/api/github/commit") {
-      await routes.getCommitInfo(request, response, url);
-      return;
-    }
     serveStaticFile(url.pathname, response);
   } catch (error) {
     console.error(error);

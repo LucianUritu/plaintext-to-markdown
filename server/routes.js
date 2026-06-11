@@ -2,6 +2,7 @@ const crypto = require("node:crypto");
 const { createGitHubClient } = require("./githubClient");
 const { PublishService } = require("./publishService");
 const { TeachBooksService } = require("./teachBooksService");
+const { VersioningService } = require("./versioningService");
 
 function createRoutes({
   appBaseUrl,
@@ -116,14 +117,13 @@ function createRoutes({
   }
 
   async function getGitHubBook(request, response, url) {
-
     const session = getRequiredGitHubSession(request, response);
+
     if (!session) {
       return;
     }
 
     const pathParts = url.pathname.split("/").filter(Boolean);
-    // pathParts: ['api', 'books', ':owner', ':repo']
     const owner = pathParts[2];
     const repoName = pathParts[3];
     const branch = url.searchParams.get("branch") || "main";
@@ -258,23 +258,31 @@ function createRoutes({
     }
   }
 
-    async function getVersionBranches(request, response, url) {
+  async function getVersionBranches(request, response, url) {
     const session = getRequiredGitHubSession(request, response);
-    if (!session) return;
+
+    if (!session) {
+      return;
+    }
 
     const owner = cleanInput(url.searchParams.get("owner"));
     const repo = cleanInput(url.searchParams.get("repo"));
     const prefix = cleanInput(url.searchParams.get("prefix") || "version/");
-    const perPage = Math.min(Number(url.searchParams.get("per_page") || 100), 100);
+    const perPage = Math.min(
+      Number(url.searchParams.get("per_page") || 100),
+      100
+    );
 
     if (!owner || !repo) {
-      sendJson(response, 400, { error: "Missing owner or repo." });
+      sendJson(response, 400, {
+        error: "Missing owner or repo."
+      });
       return;
     }
 
     try {
-      const branches = await createGitHubClient(session.githubAccessToken)
-        .listBranches({ owner, repo, prefix, perPage });
+      const branches = await createVersioningService(session, { prefix })
+        .listVersionBranches({ owner, repo, perPage });
       sendJson(response, 200, { branches });
     } catch (error) {
       sendJson(response, 502, { error: error.message });
@@ -283,20 +291,25 @@ function createRoutes({
 
   async function getCommitInfo(request, response, url) {
     const session = getRequiredGitHubSession(request, response);
-    if (!session) return;
+
+    if (!session) {
+      return;
+    }
 
     const owner = cleanInput(url.searchParams.get("owner"));
     const repo = cleanInput(url.searchParams.get("repo"));
     const sha = cleanInput(url.searchParams.get("sha"));
 
     if (!owner || !repo || !sha) {
-      sendJson(response, 400, { error: "Missing owner, repo, or sha." });
+      sendJson(response, 400, {
+        error: "Missing owner, repo, or sha."
+      });
       return;
     }
 
     try {
-      const commit = await createGitHubClient(session.githubAccessToken)
-        .getCommitBySha({ owner, repo, sha });
+      const commit = await createVersioningService(session)
+        .getCommit({ owner, repo, sha });
       sendJson(response, 200, commit);
     } catch (error) {
       sendJson(response, 502, { error: error.message });
@@ -332,6 +345,13 @@ function createRoutes({
       githubClient: createGitHubClient(session.githubAccessToken),
       rootDirectory
     });
+  }
+
+  function createVersioningService(session, options) {
+    return new VersioningService(
+      createGitHubClient(session.githubAccessToken),
+      options
+    );
   }
 
   async function exchangeCodeForToken(code) {

@@ -54,8 +54,6 @@ export function getEditorElements() {
     choiceModalMessage: document.getElementById("choiceModalMessage"),
     choiceModalActions: document.getElementById("choiceModalActions"),
     choiceModalCloseButton: document.getElementById("choiceModalCloseButton"),
-      
-    //added version picker modal elements
     versionPickerBackdrop: document.getElementById("versionPickerBackdrop"),
     versionPickerModal: document.getElementById("versionPickerModal"),
     versionPickerInput: document.getElementById("versionPickerInput"),
@@ -65,7 +63,6 @@ export function getEditorElements() {
     versionPickerClose: document.getElementById("versionPickerClose"),
     versionPickerPreview: document.getElementById("versionPickerPreview"),
 
-    //added version history panel elements
     versionHistoryPanel: document.getElementById("versionHistoryPanel"),
     versionHistoryList: document.getElementById("versionHistoryList"),
     refreshVersionHistoryButton: document.getElementById("refreshVersionHistoryButton"),

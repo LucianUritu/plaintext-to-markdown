@@ -1,11 +1,13 @@
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const { slugifyRepositoryName } = require("./githubClient");
+const { PagesUrlResolver } = require("./publishingTargets");
 
 class PublishService {
-  constructor({ githubClient, rootDirectory }) {
+  constructor({ githubClient, rootDirectory, pagesUrlResolver = new PagesUrlResolver() }) {
     this.githubClient = githubClient;
     this.rootDirectory = rootDirectory;
+    this.pagesUrlResolver = pagesUrlResolver;
     this.generatorPromise = null;
   }
 
@@ -115,10 +117,11 @@ class PublishService {
         workflowFileName: "call-deploy-book.yml"
       });
     }
-    const pagesUrl = targetBranch.startsWith("version/")
-      ? "https://" + targetOwner + ".github.io/" + targetRepo + "/"
-        + targetBranch.replace(/\//g, "-") + "/"
-      : "https://" + targetOwner + ".github.io/" + targetRepo + "/";
+    const pagesUrl = this.pagesUrlResolver.resolve({
+      owner: targetOwner,
+      repo: targetRepo,
+      branch: targetBranch
+    });
     
     return {
       commitSha: result.commit.sha,

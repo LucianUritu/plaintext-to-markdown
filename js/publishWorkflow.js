@@ -7,7 +7,6 @@ import {
   formatPublishValidationErrors,
   validateBookForPublish
 } from "./publishValidation.js";
-//added
 import { versionToBranchName } from "./versionManager.js";
 
 export class PublishWorkflow {
@@ -55,7 +54,7 @@ export class PublishWorkflow {
       return;
     }
 
-     const suggestedVersion = currentBook.lastPublishedVersion || "";
+    const suggestedVersion = currentBook.lastPublishedVersion || "";
     const versionLabel = await this.askVersionLabel({ suggestedVersion });
 
     if (!versionLabel) {
@@ -63,13 +62,7 @@ export class PublishWorkflow {
       return;
     }
 
-    const versionBranch = versionToBranchName(versionLabel);
-    const baseTarget = this.getPublishTarget();
-    const publishTarget = {
-      owner: baseTarget.owner,
-      repo: baseTarget.repo,
-      branch: versionBranch
-    };
+    const publishTarget = this.createVersionedPublishTarget(versionLabel);
     let activeProgressStep = "repository";
     this.publishProgress.reset();
     this.publishProgress.activate(activeProgressStep);
@@ -85,7 +78,7 @@ export class PublishWorkflow {
     try {
       this.setPublishBusy(true, "Uploading...");
       this.elements.publishResult.classList.add("hidden");
-      this.setStatus("Uploading TeachBooks files to GitHub (" + versionBranch + ")...", 0);
+      this.setStatus("Uploading TeachBooks files to GitHub (" + publishTarget.branch + ")...", 0);
       this.publishProgress.complete("repository");
       activeProgressStep = "pages";
       this.publishProgress.activate(activeProgressStep);
@@ -260,6 +253,16 @@ export class PublishWorkflow {
       overwriteExistingRepository,
       repositoryVisibility
     });
+  }
+
+  createVersionedPublishTarget(versionLabel) {
+    const baseTarget = this.getPublishTarget();
+
+    return {
+      owner: baseTarget.owner,
+      repo: baseTarget.repo,
+      branch: versionToBranchName(versionLabel)
+    };
   }
 
   setPublishBusy(isBusy, label) {

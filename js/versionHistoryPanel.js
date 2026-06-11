@@ -49,7 +49,7 @@ export class VersionHistoryPanel {
   renderLoading() {
     this.elements.versionHistoryError.classList.add("hidden");
     this.elements.versionHistoryList.innerHTML =
-      '<p class="version-history-message">Loading published versions…</p>';
+      '<p class="version-history-message">Loading published versions...</p>';
   }
 
   renderEmpty(message) {

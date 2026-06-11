@@ -32,7 +32,6 @@ import { PublishProgress } from "./publishProgress.js";
 import { PublishWorkflow } from "./publishWorkflow.js";
 import { setupEditorShortcuts } from "./shortcuts.js";
 import { escapeHtml } from "./utils.js";
-//
 import { VersionHistoryPanel } from "./versionHistoryPanel.js";
 import { VersionPickerModal } from "./versionPickerModal.js";
 
@@ -40,7 +39,6 @@ document.addEventListener("DOMContentLoaded", function () {
   const elements = getEditorElements();
   const imagePreviewUrls = {};
   const choiceModal = new ChoiceModal(elements);
-  //added this
   const versionPickerModal = new VersionPickerModal(elements);
   const publishProgress = new PublishProgress(elements);
   const versionHistoryPanel = new VersionHistoryPanel({

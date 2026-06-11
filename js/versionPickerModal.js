@@ -66,7 +66,7 @@ export class VersionPickerModal {
     const raw = this.elements.versionPickerInput.value.trim();
 
     if (!raw) {
-      this.elements.versionPickerPreview.textContent = "version/…";
+      this.elements.versionPickerPreview.textContent = "version/...";
       return;
     }
 
