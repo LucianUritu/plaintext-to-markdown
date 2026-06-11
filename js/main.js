@@ -376,7 +376,7 @@ document.addEventListener("DOMContentLoaded", function () {
     };
   }
 
-  function rememberPublishConnection(repository) {
+  function rememberPublishConnection(repository, options = {}) {
     if (!repository || !repository.owner || !repository.repo) {
       return;
     }
@@ -391,6 +391,10 @@ document.addEventListener("DOMContentLoaded", function () {
       currentBook.owner = repository.owner;
       currentBook.repo = repository.repo;
       currentBook.branch = repository.branch || "main";
+    }
+
+    if (options.lastPublishedVersion) {
+      currentBook.lastPublishedVersion = options.lastPublishedVersion;
     }
 
     saveBook(currentBook);

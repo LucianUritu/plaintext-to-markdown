@@ -87,34 +87,24 @@ class TeachBooksService {
   async detectRepository(repo) {
     const owner = repo.owner && repo.owner.login;
     const repoName = repo.name;
-    const branch = repo.default_branch || "main";
+    const defaultBranch = repo.default_branch || "main";
 
     if (!owner || !repoName) {
       return null;
     }
 
-    const requiredFiles = await Promise.all([
-      this.githubClient.fetchRepositoryFile({
-        owner,
-        repo: repoName,
-        branch,
-        path: "book/_config.yml"
-      }),
-      this.githubClient.fetchRepositoryFile({
-        owner,
-        repo: repoName,
-        branch,
-        path: "book/_toc.yml"
-      }),
-      this.githubClient.fetchRepositoryFile({
-        owner,
-        repo: repoName,
-        branch,
-        path: "book/intro.md"
-      })
-    ]);
+    const latestVersionBranch = await this.findLatestVersionBranch({
+      owner,
+      repoName
+    });
+    const branchCandidates = uniqueBranches([latestVersionBranch, defaultBranch]);
+    const branch = await this.findTeachBooksBranch({
+      owner,
+      repoName,
+      branches: branchCandidates
+    });
 
-    if (requiredFiles.some(function (file) { return !file; })) {
+    if (!branch) {
       return null;
     }
 
@@ -127,8 +117,95 @@ class TeachBooksService {
       private: Boolean(repo.private),
       updatedAt: repo.updated_at,
       repoUrl: repo.html_url,
-      pagesUrl: "https://" + owner + ".github.io/" + repoName + "/"
+      pagesUrl: createPagesUrl({ owner, repoName, branch })
     };
+  }
+
+  async findTeachBooksBranch({ owner, repoName, branches }) {
+    for (const branch of branches) {
+      const requiredFiles = await Promise.all([
+        this.githubClient.fetchRepositoryFile({
+          owner,
+          repo: repoName,
+          branch,
+          path: "book/_config.yml"
+        }),
+        this.githubClient.fetchRepositoryFile({
+          owner,
+          repo: repoName,
+          branch,
+          path: "book/_toc.yml"
+        }),
+        this.githubClient.fetchRepositoryFile({
+          owner,
+          repo: repoName,
+          branch,
+          path: "book/intro.md"
+        })
+      ]);
+
+      if (requiredFiles.every(Boolean)) {
+        return branch;
+      }
+    }
+
+    return "";
+  }
+
+  async findLatestVersionBranch({ owner, repoName }) {
+    let branches = [];
+
+    try {
+      branches = await this.githubClient.listBranches({
+        owner,
+        repo: repoName,
+        prefix: "version/",
+        perPage: 100
+      });
+    } catch (error) {
+      return "";
+    }
+
+    if (!branches.length) {
+      return "";
+    }
+
+    const branchesWithDates = await Promise.all(
+      branches.map(async (branch) => {
+        try {
+          const commit = await this.githubClient.getCommitBySha({
+            owner,
+            repo: repoName,
+            sha: branch.commitSha
+          });
+          const committedAt =
+            commit &&
+            commit.commit &&
+            commit.commit.author &&
+            commit.commit.author.date;
+
+          return {
+            name: branch.name,
+            committedAt: committedAt || ""
+          };
+        } catch (error) {
+          return {
+            name: branch.name,
+            committedAt: ""
+          };
+        }
+      })
+    );
+
+    branchesWithDates.sort(function (a, b) {
+      if (a.committedAt && b.committedAt) {
+        return b.committedAt.localeCompare(a.committedAt);
+      }
+
+      return b.name.localeCompare(a.name);
+    });
+
+    return branchesWithDates[0].name;
   }
 
   async loadChapters({ owner, repoName, branch, tocText }) {
@@ -169,6 +246,26 @@ function createFallbackChapter() {
     title: "Untitled Chapter",
     content: ""
   };
+}
+
+function uniqueBranches(branches) {
+  return Array.from(
+    new Set(
+      branches.filter(function (branch) {
+        return Boolean(branch);
+      })
+    )
+  );
+}
+
+function createPagesUrl({ owner, repoName, branch }) {
+  const baseUrl = "https://" + owner + ".github.io/" + repoName + "/";
+
+  if (String(branch || "").startsWith("version/")) {
+    return baseUrl + branch.replace(/\//g, "-") + "/";
+  }
+
+  return baseUrl;
 }
 
 module.exports = {

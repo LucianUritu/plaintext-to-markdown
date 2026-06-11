@@ -93,8 +93,9 @@ export class PublishWorkflow {
         repositoryVisibility
       );
 
-      this.rememberPublishConnection(result.repository);
-      currentBook.lastPublishedVersion = versionLabel;
+      this.rememberPublishConnection(result.repository, {
+        lastPublishedVersion: versionLabel
+      });
       this.publishProgress.complete("pages");
       this.publishProgress.complete("upload");
       activeProgressStep = "action";
@@ -121,7 +122,8 @@ export class PublishWorkflow {
           error,
           currentBook,
           publishTarget,
-          repositoryVisibility
+          repositoryVisibility,
+          versionLabel
         );
         return;
       }
@@ -139,7 +141,8 @@ export class PublishWorkflow {
     error,
     currentBook,
     publishTarget,
-    repositoryVisibility
+    repositoryVisibility,
+    versionLabel
   ) {
     const repository = error.repository;
     const repositoryName = repository
@@ -186,7 +189,9 @@ export class PublishWorkflow {
         repositoryVisibility
       );
 
-      this.rememberPublishConnection(result.repository);
+      this.rememberPublishConnection(result.repository, {
+        lastPublishedVersion: versionLabel
+      });
       this.publishProgress.complete("pages");
       this.publishProgress.complete("upload");
       activeProgressStep = "action";
