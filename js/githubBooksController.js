@@ -62,7 +62,9 @@ export class GitHubBooksController {
 
     try {
       const result = await loadGitHubBooks();
-      this.renderBooks(result.books || []);
+      this.renderBooks(result.books || [], {
+        missingScopes: result.missingScopes || []
+      });
     } catch (error) {
       if (this.handleExpiredSession(error)) {
         return;
@@ -104,14 +106,21 @@ export class GitHubBooksController {
     }
   }
 
-  renderBooks(books) {
+  renderBooks(books, options = {}) {
+    const missingScopes = options.missingScopes || [];
+
     if (books.length === 0) {
-      this.elements.githubBooksList.innerHTML =
-        '<p class="github-books-message">No TeachBooks repositories found yet.</p>';
+      this.elements.githubBooksList.innerHTML = "";
+      this.renderMissingScopeNotice(missingScopes);
+      this.elements.githubBooksList.insertAdjacentHTML(
+        "beforeend",
+        '<p class="github-books-message">No TeachBooks repositories found yet.</p>'
+      );
       return;
     }
 
     this.elements.githubBooksList.innerHTML = "";
+    this.renderMissingScopeNotice(missingScopes);
 
     books.forEach((book) => {
       const bookCard = document.createElement("article");
@@ -152,6 +161,29 @@ export class GitHubBooksController {
 
       this.elements.githubBooksList.appendChild(bookCard);
     });
+  }
+
+  renderMissingScopeNotice(missingScopes) {
+    if (!missingScopes.includes("read:org")) {
+      return;
+    }
+
+    const notice = document.createElement("div");
+    notice.className = "github-books-notice";
+    notice.innerHTML =
+      "<div>" +
+      "<strong>Organization books may be hidden.</strong>" +
+      "<p>Reconnect GitHub so the app can read organization memberships and show books you can access as a contributor.</p>" +
+      "</div>" +
+      '<button type="button" data-action="reconnect-github">Reconnect GitHub</button>';
+
+    notice
+      .querySelector('[data-action="reconnect-github"]')
+      .addEventListener("click", function () {
+        window.location.href = "/auth/github/start";
+      });
+
+    this.elements.githubBooksList.appendChild(notice);
   }
 
   async logout() {

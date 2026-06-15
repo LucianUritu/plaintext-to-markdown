@@ -20,7 +20,7 @@ function createGitHubClient(token) {
   async function fetchRepos() {
     const reposByFullName = new Map();
     const userRepos = await fetchPaginatedJson(
-      "https://api.github.com/user/repos?per_page=100&sort=updated&affiliation=owner,collaborator,organization_member"
+      "https://api.github.com/user/repos?per_page=100&sort=updated&visibility=all&affiliation=owner,collaborator,organization_member"
     );
 
     if (!Array.isArray(userRepos)) {
@@ -44,7 +44,7 @@ function createGitHubClient(token) {
         const organizationRepos = await fetchPaginatedJson(
           "https://api.github.com/orgs/" +
             encodeURIComponent(organizationLogin) +
-            "/repos?per_page=100&type=all&sort=updated"
+            "/repos?per_page=100&type=member&sort=updated"
         );
 
         if (Array.isArray(organizationRepos)) {

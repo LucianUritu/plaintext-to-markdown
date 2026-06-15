@@ -24,8 +24,7 @@ function createRoutes({
 
     const session = sessionStore.getOrCreateSession(request, response);
     const state = crypto.randomBytes(24).toString("hex");
-    const scope =
-      process.env.GITHUB_OAUTH_SCOPE || "read:user read:org repo workflow";
+    const scope = buildGitHubOAuthScope(process.env.GITHUB_OAUTH_SCOPE);
 
     session.githubOAuthState = state;
 
@@ -92,7 +91,8 @@ function createRoutes({
       name: user.name,
       avatarUrl: user.avatar_url,
       profileUrl: user.html_url,
-      scope: session.githubScope
+      scope: session.githubScope,
+      missingScopes: getMissingGitHubScopes(session.githubScope)
     });
   }
 
@@ -113,7 +113,8 @@ function createRoutes({
     }
 
     sendJson(response, 200, {
-      books
+      books,
+      missingScopes: getMissingGitHubScopes(session.githubScope)
     });
   }
 
@@ -393,6 +394,44 @@ function cleanInput(value) {
 
 function normalizeRepositoryVisibility(value) {
   return value === "private" ? "private" : "public";
+}
+
+function buildGitHubOAuthScope(configuredScope) {
+  return mergeGitHubScopes(configuredScope, [
+    "read:user",
+    "read:org",
+    "repo",
+    "workflow"
+  ]);
+}
+
+function getMissingGitHubScopes(scope) {
+  const grantedScopes = parseGitHubScopes(scope);
+
+  return ["read:org"].filter(function (requiredScope) {
+    return !grantedScopes.has(requiredScope);
+  });
+}
+
+function mergeGitHubScopes(configuredScope, requiredScopes) {
+  const scopes = parseGitHubScopes(configuredScope || "read:user repo workflow");
+
+  requiredScopes.forEach(function (scope) {
+    scopes.add(scope);
+  });
+
+  return Array.from(scopes).join(" ");
+}
+
+function parseGitHubScopes(scope) {
+  return new Set(
+    String(scope || "")
+      .split(/[,\s]+/)
+      .map(function (value) {
+        return value.trim();
+      })
+      .filter(Boolean)
+  );
 }
 
 function isConflictError(code) {
