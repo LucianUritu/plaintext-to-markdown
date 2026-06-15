@@ -84,9 +84,13 @@ class TeachBooksService {
       repo: repoName,
       branch,
       title: repoName,
+      teachBooksToc: {
+        text: tocText
+      },
       introduction: {
         title: introDocument.title || "Introduction",
-        content: introDocument.content
+        content: introDocument.content,
+        sourcePath: "intro.md"
       },
       chapters: chapters.length > 0 ? chapters : [createFallbackChapter()],
       images,
@@ -243,7 +247,8 @@ class TeachBooksService {
       chapters.push({
         id: "github-chapter-" + index,
         title: chapterDocument.title || "Chapter " + (index + 1),
-        content: chapterDocument.content
+        content: chapterDocument.content,
+        sourcePath: chapterPath
       });
     }
 

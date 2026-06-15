@@ -16,15 +16,51 @@ function readYamlTitle(configText) {
 function readChapterPathsFromToc(tocText) {
   const paths = [];
   const lines = String(tocText || "").split(/\r?\n/);
+  const listStack = [];
 
   lines.forEach(function (line) {
-    const match = line.match(/^\s*-\s*file:\s*(.+)\s*$/);
+    if (!line.trim() || line.trim().startsWith("#")) {
+      return;
+    }
+
+    const listKeyMatch = line.match(/^(\s*)(?:-\s*)?(chapters|sections):\s*$/);
+
+    if (listKeyMatch) {
+      const indent = listKeyMatch[1].length;
+
+      while (
+        listStack.length &&
+        listStack[listStack.length - 1].indent >= indent
+      ) {
+        listStack.pop();
+      }
+
+      listStack.push({
+        indent,
+        key: listKeyMatch[2]
+      });
+
+      return;
+    }
+
+    const match = line.match(/^(\s*)-\s*file:\s*(.+)\s*$/);
 
     if (!match) {
       return;
     }
 
-    const filePath = match[1].trim().replace(/^["']|["']$/g, "");
+    const indent = match[1].length;
+    const parentList = findParentList(listStack, indent);
+
+    if (parentList && parentList.key === "sections") {
+      return;
+    }
+
+    if (parentList && parentList.key !== "chapters") {
+      return;
+    }
+
+    const filePath = match[2].trim().replace(/^["']|["']$/g, "");
 
     if (filePath === "intro" || filePath === "intro.md") {
       return;
@@ -34,6 +70,16 @@ function readChapterPathsFromToc(tocText) {
   });
 
   return paths;
+}
+
+function findParentList(listStack, childIndent) {
+  for (let index = listStack.length - 1; index >= 0; index -= 1) {
+    if (listStack[index].indent <= childIndent) {
+      return listStack[index];
+    }
+  }
+
+  return null;
 }
 
 function parseMarkdownDocument(markdown) {

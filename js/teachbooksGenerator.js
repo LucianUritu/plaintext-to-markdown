@@ -34,13 +34,13 @@ export function generateTeachBooksFiles(book, options = {}) {
   });
 
   files.push({
-    path: "book/intro.md",
+    path: "book/" + getIntroductionPath(book),
     content: generateIntro(book)
   });
 
   book.chapters.forEach(function (chapter, index) {
     files.push({
-      path: "book/chapters/" + makeChapterFileName(chapter, index),
+      path: "book/" + getChapterPath(chapter, index),
       content: generateChapterMarkdown(chapter, index)
     });
   });
@@ -134,6 +134,10 @@ parse:
 }
 
 function generateToc(book) {
+  if (canReuseSourceToc(book)) {
+    return book.teachBooksToc.text;
+  }
+
   const chapterLines = book.chapters
     .map(function (chapter, index) {
       return "      - file: chapters/" + removeExtension(makeChapterFileName(chapter, index));
@@ -148,6 +152,18 @@ parts:
     chapters:
 ${chapterLines}
 `;
+}
+
+function canReuseSourceToc(book) {
+  return (
+    book &&
+    book.teachBooksToc &&
+    book.teachBooksToc.text &&
+    Array.isArray(book.chapters) &&
+    book.chapters.every(function (chapter) {
+      return Boolean(getSafeBookPath(chapter.sourcePath));
+    })
+  );
 }
 
 function generateIntro(book) {
@@ -207,6 +223,42 @@ function convertBodyTextToMarkdown(text) {
 function makeChapterFileName(chapter, index) {
   const title = chapter.title || "chapter-" + (index + 1);
   return String(index + 1).padStart(2, "0") + "-" + slugify(title) + ".md";
+}
+
+function getIntroductionPath(book) {
+  const sourcePath = getSafeBookPath(
+    book && book.introduction && book.introduction.sourcePath
+  );
+
+  return sourcePath || "intro.md";
+}
+
+function getChapterPath(chapter, index) {
+  const sourcePath = getSafeBookPath(chapter && chapter.sourcePath);
+
+  return sourcePath || "chapters/" + makeChapterFileName(chapter, index);
+}
+
+function getSafeBookPath(path) {
+  const normalizedPath = String(path || "").replace(/\\/g, "/").trim();
+
+  if (
+    !normalizedPath ||
+    normalizedPath.startsWith("/") ||
+    normalizedPath.includes("../")
+  ) {
+    return "";
+  }
+
+  return ensureMarkdownExtension(normalizedPath.replace(/^book\//, ""));
+}
+
+function ensureMarkdownExtension(path) {
+  if (/\.md$/i.test(path)) {
+    return path;
+  }
+
+  return path + ".md";
 }
 
 function slugify(text) {
