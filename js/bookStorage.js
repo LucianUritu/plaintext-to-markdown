@@ -103,6 +103,37 @@ export function removeChapter(book, chapterId) {
   };
 }
 
+export function moveChapter(book, chapterId, insertionIndex) {
+  normalizeBook(book);
+
+  const chapterIndex = book.chapters.findIndex(function (chapter) {
+    return chapter.id === chapterId;
+  });
+
+  if (chapterIndex === -1) {
+    return false;
+  }
+
+  let targetIndex = Math.max(
+    0,
+    Math.min(insertionIndex, book.chapters.length)
+  );
+
+  if (chapterIndex < targetIndex) {
+    targetIndex -= 1;
+  }
+
+  if (chapterIndex === targetIndex) {
+    return false;
+  }
+
+  const chapter = book.chapters.splice(chapterIndex, 1)[0];
+  book.chapters.splice(targetIndex, 0, chapter);
+  saveBook(book);
+
+  return true;
+}
+
 export function updateBookTitle(book, title) {
   normalizeBook(book);
 

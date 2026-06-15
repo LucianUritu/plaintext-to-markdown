@@ -388,6 +388,7 @@ pre {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  position: relative;
   min-height: 120px;
   padding: 18px;
   background: white;
@@ -396,6 +397,14 @@ pre {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   text-align: left;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.chapter-card[draggable="true"] {
+  cursor: grab;
+}
+
+.chapter-card[draggable="true"]:active {
+  cursor: grabbing;
 }
 
 .chapter-card strong {
@@ -411,6 +420,33 @@ pre {
   opacity: 1;
   transform: translateY(-2px);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+
+.chapter-card.is-dragging {
+  opacity: 0.55;
+}
+
+.chapter-card.is-drop-before::before,
+.chapter-card.is-drop-after::after {
+  content: "";
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  width: 4px;
+  border-radius: 999px;
+  background: #2563eb;
+}
+
+.chapter-card.is-drop-before::before {
+  left: -8px;
+}
+
+.chapter-card.is-drop-after::after {
+  right: -8px;
+}
+
+.introduction-card {
+  cursor: pointer;
 }
 
 /* Published versions */

@@ -3,6 +3,7 @@ import {
   createNewBook,
   findChapterById,
   loadBook,
+  moveChapter,
   removeChapter,
   saveBook,
   setActiveChapter,
@@ -63,6 +64,8 @@ document.addEventListener("DOMContentLoaded", function () {
   let currentBook = loadBook();
   let activeChapter = null;
   let activeEditorType = null;
+  let draggedChapterId = null;
+  let suppressChapterClick = false;
 
   const views = [
     elements.homeView,
@@ -196,6 +199,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const introductionCard = document.createElement("button");
     introductionCard.className = "chapter-card introduction-card";
+    introductionCard.type = "button";
+    introductionCard.draggable = false;
+    introductionCard.setAttribute(
+      "aria-label",
+      "Open introduction. Introduction cannot be reordered."
+    );
 
     introductionCard.innerHTML =
       "<strong>Introduction</strong>" +
@@ -215,6 +224,14 @@ document.addEventListener("DOMContentLoaded", function () {
     currentBook.chapters.forEach(function (chapter, index) {
       const chapterCard = document.createElement("button");
       chapterCard.className = "chapter-card";
+      chapterCard.type = "button";
+      chapterCard.draggable = true;
+      chapterCard.dataset.chapterId = chapter.id;
+      chapterCard.dataset.chapterIndex = index;
+      chapterCard.setAttribute(
+        "aria-label",
+        "Open or drag to reorder " + chapter.title
+      );
 
       chapterCard.innerHTML =
         "<strong>" +
@@ -225,6 +242,10 @@ document.addEventListener("DOMContentLoaded", function () {
         "</span>";
 
       chapterCard.addEventListener("click", function () {
+        if (suppressChapterClick) {
+          return;
+        }
+
         navigation.navigate({
           view: "editor",
           type: "chapter",
@@ -232,11 +253,111 @@ document.addEventListener("DOMContentLoaded", function () {
         });
       });
 
+      chapterCard.addEventListener("dragstart", function (event) {
+        draggedChapterId = chapter.id;
+        suppressChapterClick = true;
+        chapterCard.classList.add("is-dragging");
+
+        if (event.dataTransfer) {
+          event.dataTransfer.effectAllowed = "move";
+          event.dataTransfer.setData("text/plain", chapter.id);
+        }
+      });
+
+      chapterCard.addEventListener("dragover", function (event) {
+        if (!draggedChapterId || draggedChapterId === chapter.id) {
+          return;
+        }
+
+        event.preventDefault();
+
+        if (event.dataTransfer) {
+          event.dataTransfer.dropEffect = "move";
+        }
+
+        updateChapterDropHint(chapterCard, event);
+      });
+
+      chapterCard.addEventListener("dragleave", function () {
+        clearChapterDropHint(chapterCard);
+      });
+
+      chapterCard.addEventListener("drop", function (event) {
+        if (!draggedChapterId || draggedChapterId === chapter.id) {
+          return;
+        }
+
+        event.preventDefault();
+
+        const targetIndex = Number(chapterCard.dataset.chapterIndex);
+        const insertionIndex =
+          targetIndex + (shouldDropAfter(chapterCard, event) ? 1 : 0);
+        const moved = moveChapter(
+          currentBook,
+          draggedChapterId,
+          insertionIndex
+        );
+
+        draggedChapterId = null;
+        clearAllChapterDropHints();
+
+        if (moved) {
+          renderBookView();
+          setStatus("Chapter order updated.");
+        }
+
+        window.setTimeout(function () {
+          suppressChapterClick = false;
+        }, 0);
+      });
+
+      chapterCard.addEventListener("dragend", function () {
+        draggedChapterId = null;
+        chapterCard.classList.remove("is-dragging");
+        clearAllChapterDropHints();
+
+        window.setTimeout(function () {
+          suppressChapterClick = false;
+        }, 0);
+      });
+
       elements.chapterList.appendChild(chapterCard);
     });
 
     showView(elements.bookView, views);
     versionHistoryPanel.show();
+  }
+
+  function shouldDropAfter(chapterCard, event) {
+    const rect = chapterCard.getBoundingClientRect();
+    const midpointY = rect.top + rect.height / 2;
+
+    if (Math.abs(event.clientY - midpointY) > rect.height / 4) {
+      return event.clientY > midpointY;
+    }
+
+    return event.clientX > rect.left + rect.width / 2;
+  }
+
+  function updateChapterDropHint(chapterCard, event) {
+    clearChapterDropHint(chapterCard);
+
+    if (shouldDropAfter(chapterCard, event)) {
+      chapterCard.classList.add("is-drop-after");
+      return;
+    }
+
+    chapterCard.classList.add("is-drop-before");
+  }
+
+  function clearChapterDropHint(chapterCard) {
+    chapterCard.classList.remove("is-drop-before", "is-drop-after");
+  }
+
+  function clearAllChapterDropHints() {
+    elements.chapterList
+      .querySelectorAll(".chapter-card")
+      .forEach(clearChapterDropHint);
   }
 
   function showHomeView() {
