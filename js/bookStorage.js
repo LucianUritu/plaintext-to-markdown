@@ -306,5 +306,10 @@ export function normalizeBook(book) {
     book.activeItemType = book.activeChapterId ? "chapter" : "introduction";
   }
 
+  if (book.hideIntroductionCard && book.activeItemType === "introduction") {
+    book.activeItemType = "chapter";
+    book.activeChapterId = book.chapters[0] ? book.chapters[0].id : null;
+  }
+
   return book;
 }

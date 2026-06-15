@@ -197,29 +197,31 @@ document.addEventListener("DOMContentLoaded", function () {
     elements.bookTitleInput.value = currentBook.title;
     elements.chapterList.innerHTML = "";
 
-    const introductionCard = document.createElement("button");
-    introductionCard.className = "chapter-card introduction-card";
-    introductionCard.type = "button";
-    introductionCard.draggable = false;
-    introductionCard.setAttribute(
-      "aria-label",
-      "Open introduction. Introduction cannot be reordered."
-    );
+    if (!currentBook.hideIntroductionCard) {
+      const introductionCard = document.createElement("button");
+      introductionCard.className = "chapter-card introduction-card";
+      introductionCard.type = "button";
+      introductionCard.draggable = false;
+      introductionCard.setAttribute(
+        "aria-label",
+        "Open introduction. Introduction cannot be reordered."
+      );
 
-    introductionCard.innerHTML =
-      "<strong>Introduction</strong>" +
-      "<span>" +
-      escapeHtml(currentBook.introduction.title || "Introduction") +
-      "</span>";
+      introductionCard.innerHTML =
+        "<strong>Introduction</strong>" +
+        "<span>" +
+        escapeHtml(currentBook.introduction.title || "Introduction") +
+        "</span>";
 
-    introductionCard.addEventListener("click", function () {
-      navigation.navigate({
-        view: "editor",
-        type: "introduction"
+      introductionCard.addEventListener("click", function () {
+        navigation.navigate({
+          view: "editor",
+          type: "introduction"
+        });
       });
-    });
 
-    elements.chapterList.appendChild(introductionCard);
+      elements.chapterList.appendChild(introductionCard);
+    }
 
     currentBook.chapters.forEach(function (chapter, index) {
       const chapterCard = document.createElement("button");
@@ -235,7 +237,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
       chapterCard.innerHTML =
         "<strong>" +
-        escapeHtml("Chapter " + (index + 1)) +
+        escapeHtml(getChapterCardLabel(chapter, index)) +
         "</strong>" +
         "<span>" +
         escapeHtml(chapter.title) +
@@ -326,6 +328,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
     showView(elements.bookView, views);
     versionHistoryPanel.show();
+  }
+
+  function getChapterCardLabel(chapter, index) {
+    return chapter.tocCaption || "Chapter " + (index + 1);
   }
 
   function shouldDropAfter(chapterCard, event) {
@@ -794,6 +800,12 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     if (state.view === "editor" && state.type === "introduction") {
+      if (currentBook.hideIntroductionCard) {
+        navigation.replace({ view: "book" });
+        renderBookView();
+        return;
+      }
+
       openIntroduction({ announce: false });
       return;
     }

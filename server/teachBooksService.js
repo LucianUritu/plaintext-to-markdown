@@ -1,7 +1,9 @@
 const {
   decodeBase64Text,
   parseMarkdownDocument,
+  readChapterEntriesFromToc,
   readChapterPathsFromToc,
+  readRootPathFromToc,
 } = require("./teachBooksParser");
 
 class TeachBooksService {
@@ -30,7 +32,7 @@ class TeachBooksService {
   }
 
   async loadBook({ owner, repoName, branch }) {
-    const [configFile, tocFile, introFile] = await Promise.all([
+    const [configFile, tocFile] = await Promise.all([
       this.githubClient.fetchRepositoryFile({
         owner,
         repo: repoName,
@@ -42,28 +44,38 @@ class TeachBooksService {
         repo: repoName,
         branch,
         path: "book/_toc.yml"
-      }),
-      this.githubClient.fetchRepositoryFile({
-        owner,
-        repo: repoName,
-        branch,
-        path: "book/intro.md"
       })
     ]);
 
-    if (!configFile || !tocFile || !introFile) {
+    if (!configFile || !tocFile) {
       return null;
     }
 
     const tocText = decodeBase64Text(tocFile.content);
+    const rootPath = readRootPathFromToc(tocText);
+    const introFile = await this.githubClient.fetchRepositoryFile({
+      owner,
+      repo: repoName,
+      branch,
+      path: "book/" + rootPath
+    });
+
+    if (!introFile) {
+      return null;
+    }
+
     const introDocument = parseMarkdownDocument(
       decodeBase64Text(introFile.content)
     );
+    const chapterEntries = readChapterEntriesFromToc(tocText);
+    const hideIntroductionCard =
+      chapterEntries.length > 0 &&
+      !isIntroductionTitle(introDocument.title);
     const chapters = await this.loadChapters({
       owner,
       repoName,
       branch,
-      tocText
+      entries: chapterEntries
     });
     const images = await this.loadImages({
       owner,
@@ -84,18 +96,19 @@ class TeachBooksService {
       repo: repoName,
       branch,
       title: repoName,
+      hideIntroductionCard,
       teachBooksToc: {
         text: tocText
       },
       introduction: {
         title: introDocument.title || "Introduction",
         content: introDocument.content,
-        sourcePath: "intro.md"
+        sourcePath: rootPath
       },
       chapters: chapters.length > 0 ? chapters : [createFallbackChapter()],
       images,
       activeChapterId: null,
-      activeItemType: "introduction"
+      activeItemType: hideIntroductionCard ? "chapter" : "introduction"
     };
   }
 
@@ -223,12 +236,20 @@ class TeachBooksService {
     return branchesWithDates[0].name;
   }
 
-  async loadChapters({ owner, repoName, branch, tocText }) {
-    const chapterPaths = readChapterPathsFromToc(tocText);
+  async loadChapters({ owner, repoName, branch, tocText, entries }) {
+    const chapterEntries = entries || readChapterPathsFromToc(tocText).map(
+      function (path) {
+        return {
+          caption: "",
+          path
+        };
+      }
+    );
     const chapters = [];
 
-    for (let index = 0; index < chapterPaths.length; index += 1) {
-      const chapterPath = chapterPaths[index];
+    for (let index = 0; index < chapterEntries.length; index += 1) {
+      const chapterEntry = chapterEntries[index];
+      const chapterPath = chapterEntry.path;
       const chapterFile = await this.githubClient.fetchRepositoryFile({
         owner,
         repo: repoName,
@@ -248,7 +269,8 @@ class TeachBooksService {
         id: "github-chapter-" + index,
         title: chapterDocument.title || "Chapter " + (index + 1),
         content: chapterDocument.content,
-        sourcePath: chapterPath
+        sourcePath: chapterPath,
+        tocCaption: chapterEntry.caption || ""
       });
     }
 
@@ -293,6 +315,10 @@ function createFallbackChapter() {
     title: "Untitled Chapter",
     content: ""
   };
+}
+
+function isIntroductionTitle(title) {
+  return String(title || "").trim().toLowerCase() === "introduction";
 }
 
 function uniqueBranches(branches) {

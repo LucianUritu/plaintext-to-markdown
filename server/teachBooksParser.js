@@ -12,14 +12,29 @@ function readYamlTitle(configText) {
   return match[1].trim().replace(/^["']|["']$/g, "");
 }
 
-//test
 function readChapterPathsFromToc(tocText) {
+  return readChapterEntriesFromToc(tocText).map(function (entry) {
+    return entry.path;
+  });
+}
+
+function readChapterEntriesFromToc(tocText) {
+  const entries = [];
   const paths = [];
   const lines = String(tocText || "").split(/\r?\n/);
   const listStack = [];
+  const rootPath = readRootPathFromToc(tocText);
+  let currentCaption = "";
 
   lines.forEach(function (line) {
     if (!line.trim() || line.trim().startsWith("#")) {
+      return;
+    }
+
+    const captionMatch = line.match(/^\s*-\s*caption:\s*(.+)\s*$/);
+
+    if (captionMatch) {
+      currentCaption = captionMatch[1].trim().replace(/^["']|["']$/g, "");
       return;
     }
 
@@ -62,14 +77,34 @@ function readChapterPathsFromToc(tocText) {
 
     const filePath = match[2].trim().replace(/^["']|["']$/g, "");
 
-    if (filePath === "intro" || filePath === "intro.md") {
+    const path = ensureMarkdownExtension(filePath);
+
+    if (path === rootPath) {
       return;
     }
 
-    paths.push(ensureMarkdownExtension(filePath));
+    if (paths.includes(path)) {
+      return;
+    }
+
+    paths.push(path);
+    entries.push({
+      caption: currentCaption,
+      path
+    });
   });
 
-  return paths;
+  return entries;
+}
+
+function readRootPathFromToc(tocText) {
+  const match = String(tocText || "").match(/^root:\s*(.+)\s*$/m);
+
+  if (!match) {
+    return "intro.md";
+  }
+
+  return ensureMarkdownExtension(match[1].trim().replace(/^["']|["']$/g, ""));
 }
 
 function findParentList(listStack, childIndent) {
@@ -117,6 +152,8 @@ function ensureMarkdownExtension(filePath) {
 module.exports = {
   decodeBase64Text,
   parseMarkdownDocument,
+  readChapterEntriesFromToc,
   readChapterPathsFromToc,
+  readRootPathFromToc,
   readYamlTitle
 };
