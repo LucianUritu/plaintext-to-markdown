@@ -24,7 +24,8 @@ function createRoutes({
 
     const session = sessionStore.getOrCreateSession(request, response);
     const state = crypto.randomBytes(24).toString("hex");
-    const scope = process.env.GITHUB_OAUTH_SCOPE || "read:user repo workflow";
+    const scope =
+      process.env.GITHUB_OAUTH_SCOPE || "read:user read:org repo workflow";
 
     session.githubOAuthState = state;
 

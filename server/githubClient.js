@@ -18,29 +18,42 @@ function createGitHubClient(token) {
   }
 
   async function fetchRepos() {
-    const repos = [];
-    let page = 1;
+    const reposByFullName = new Map();
+    const userRepos = await fetchPaginatedJson(
+      "https://api.github.com/user/repos?per_page=100&sort=updated&affiliation=owner,collaborator,organization_member"
+    );
 
-    while (page <= 10) {
-      const pageRepos = await fetchJson(
-        "https://api.github.com/user/repos?per_page=100&sort=updated&affiliation=owner,collaborator,organization_member&page=" +
-          page
-      );
-
-      if (!Array.isArray(pageRepos)) {
-        return null;
-      }
-
-      repos.push(...pageRepos);
-
-      if (pageRepos.length < 100) {
-        break;
-      }
-
-      page += 1;
+    if (!Array.isArray(userRepos)) {
+      return null;
     }
 
-    return repos;
+    addRepositories(reposByFullName, userRepos);
+
+    const organizations = await fetchPaginatedJson(
+      "https://api.github.com/user/orgs?per_page=100"
+    );
+
+    if (Array.isArray(organizations)) {
+      for (const organization of organizations) {
+        const organizationLogin = organization && organization.login;
+
+        if (!organizationLogin) {
+          continue;
+        }
+
+        const organizationRepos = await fetchPaginatedJson(
+          "https://api.github.com/orgs/" +
+            encodeURIComponent(organizationLogin) +
+            "/repos?per_page=100&type=all&sort=updated"
+        );
+
+        if (Array.isArray(organizationRepos)) {
+          addRepositories(reposByFullName, organizationRepos);
+        }
+      }
+    }
+
+    return Array.from(reposByFullName.values()).sort(compareReposByUpdatedAt);
   }
 
   async function fetchRepositoryFile({ owner, repo, branch, path: filePath }) {
@@ -284,6 +297,47 @@ function createGitHubClient(token) {
     }
 
     return response.json();
+  }
+
+  async function fetchPaginatedJson(baseUrl) {
+    const items = [];
+    let page = 1;
+
+    while (page <= 10) {
+      const separator = baseUrl.includes("?") ? "&" : "?";
+      const pageItems = await fetchJson(baseUrl + separator + "page=" + page);
+
+      if (!Array.isArray(pageItems)) {
+        return null;
+      }
+
+      items.push(...pageItems);
+
+      if (pageItems.length < 100) {
+        break;
+      }
+
+      page += 1;
+    }
+
+    return items;
+  }
+
+  function addRepositories(reposByFullName, repos) {
+    repos.forEach(function (repo) {
+      if (!repo || !repo.full_name) {
+        return;
+      }
+
+      reposByFullName.set(repo.full_name.toLowerCase(), repo);
+    });
+  }
+
+  function compareReposByUpdatedAt(firstRepo, secondRepo) {
+    return (
+      Date.parse(secondRepo.updated_at || "") -
+      Date.parse(firstRepo.updated_at || "")
+    );
   }
 
   async function createTreeItems({ owner, repo, files }) {
