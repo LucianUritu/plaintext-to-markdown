@@ -752,7 +752,7 @@ pre {
 
 .reference-form {
   display: grid;
-  grid-template-columns: 1fr 1.5fr 120px;
+  grid-template-columns: 1fr 1.5fr 170px;
   gap: 12px;
   padding: 16px;
   border: 1px solid #e5e7eb;
@@ -767,6 +767,12 @@ pre {
   color: #374151;
   font-size: 13px;
   font-weight: 700;
+}
+
+.reference-label-text {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
 }
 
 .reference-form label:nth-of-type(4) {
@@ -786,6 +792,12 @@ pre {
   display: flex;
   align-items: flex-end;
   gap: 8px;
+}
+
+.reference-form-actions button {
+  width: 100%;
+  min-height: 42px;
+  white-space: nowrap;
 }
 
 .reference-list {
