@@ -1,8 +1,17 @@
-function createGitHubClient(token) {
+const GITHUB_API_URL = "https://api.github.com";
+const MAX_PAGINATION_PAGES = 10;
+
+function createGitHubClient(
+  token,
+  { fetchImpl = globalThis.fetch, apiUrl = GITHUB_API_URL } = {}
+) {
+  if (typeof fetchImpl !== "function") {
+    throw new TypeError("A fetch implementation is required.");
+  }
+  const normalizedApiUrl = String(apiUrl).replace(/\/+$/, "");
+
   async function getCurrentUser() {
-    const response = await fetch("https://api.github.com/user", {
-      headers: createGitHubApiHeaders()
-    });
+    const response = await request("/user");
 
     if (!response.ok) {
       return {
@@ -20,7 +29,8 @@ function createGitHubClient(token) {
   async function fetchRepos() {
     const reposByFullName = new Map();
     const userRepos = await fetchPaginatedJson(
-      "https://api.github.com/user/repos?per_page=100&sort=updated&visibility=all&affiliation=owner,collaborator,organization_member"
+      "/user/repos?per_page=100&sort=updated&visibility=all" +
+        "&affiliation=owner,collaborator,organization_member"
     );
 
     if (!Array.isArray(userRepos)) {
@@ -30,7 +40,7 @@ function createGitHubClient(token) {
     addRepositories(reposByFullName, userRepos);
 
     const organizations = await fetchPaginatedJson(
-      "https://api.github.com/user/orgs?per_page=100"
+      "/user/orgs?per_page=100"
     );
 
     if (Array.isArray(organizations)) {
@@ -42,7 +52,7 @@ function createGitHubClient(token) {
         }
 
         const organizationRepos = await fetchPaginatedJson(
-          "https://api.github.com/orgs/" +
+          "/orgs/" +
             encodeURIComponent(organizationLogin) +
             "/repos?per_page=100&type=member&sort=updated"
         );
@@ -58,10 +68,7 @@ function createGitHubClient(token) {
 
   async function fetchRepositoryFile({ owner, repo, branch, path: filePath }) {
     const url =
-      "https://api.github.com/repos/" +
-      encodeURIComponent(owner) +
-      "/" +
-      encodeURIComponent(repo) +
+      createRepositoryPath(owner, repo) +
       "/contents/" +
       filePath
         .split("/")
@@ -70,9 +77,7 @@ function createGitHubClient(token) {
       "?ref=" +
       encodeURIComponent(branch);
 
-    const response = await fetch(url, {
-      headers: createGitHubApiHeaders()
-    });
+    const response = await request(url);
 
     if (!response.ok) {
       return null;
@@ -82,15 +87,14 @@ function createGitHubClient(token) {
   }
 
   async function createRepository({ name, isPrivate }) {
-    const response = await fetch("https://api.github.com/user/repos", {
+    const response = await request("/user/repos", {
       method: "POST",
-      headers: createGitHubJsonHeaders(),
-      body: JSON.stringify({
+      json: {
         name,
         description: "TeachBooks book created with the book platform.",
         private: Boolean(isPrivate),
         auto_init: true
-      })
+      }
     });
 
     if (response.status === 201) {
@@ -109,9 +113,7 @@ function createGitHubClient(token) {
   }
 
   async function getRepository({ owner, repo }) {
-    const response = await fetch(createRepositoryUrl(owner, repo), {
-      headers: createGitHubApiHeaders()
-    });
+    const response = await request(createRepositoryPath(owner, repo));
 
     if (response.status === 404) {
       return null;
@@ -126,17 +128,12 @@ function createGitHubClient(token) {
 
   async function findWorkflowRunForCommit({ owner, repo, branch, commitSha }) {
     const url =
-      "https://api.github.com/repos/" +
-      encodeURIComponent(owner) +
-      "/" +
-      encodeURIComponent(repo) +
+      createRepositoryPath(owner, repo) +
       "/actions/runs?branch=" +
       encodeURIComponent(branch) +
       "&per_page=20";
 
-    const response = await fetch(url, {
-      headers: createGitHubApiHeaders()
-    });
+    const response = await request(url);
 
     if (!response.ok) {
       throw new Error("Could not read GitHub Actions workflow runs.");
@@ -161,12 +158,11 @@ function createGitHubClient(token) {
       return existingSite;
     }
 
-    const response = await fetch(createRepositoryUrl(owner, repo) + "/pages", {
+    const response = await request(createRepositoryPath(owner, repo) + "/pages", {
       method: "POST",
-      headers: createGitHubJsonHeaders(),
-      body: JSON.stringify({
+      json: {
         build_type: "workflow"
-      })
+      }
     });
 
     if (response.status === 201) {
@@ -183,9 +179,7 @@ function createGitHubClient(token) {
   }
 
   async function getPagesSite({ owner, repo }) {
-    const response = await fetch(createRepositoryUrl(owner, repo) + "/pages", {
-      headers: createGitHubApiHeaders()
-    });
+    const response = await request(createRepositoryPath(owner, repo) + "/pages");
 
     if (response.status === 404) {
       return null;
@@ -204,14 +198,7 @@ function createGitHubClient(token) {
   async function publishFiles({ owner, repo, branch, files, commitMessage }) {
     await checkRepositoryAccess({ owner, repo });
 
-    let branchData = await getBranch({ owner, repo, branch });
-
-    if (!branchData) {
-      const defaultBranchName = await getDefaultBranch({ owner, repo });
-      const defaultBranchData = await getBranch({ owner, repo, branch: defaultBranchName });
-      await createBranch({ owner, repo, branch, fromSha: defaultBranchData.commit.sha });
-      branchData = await getBranch({ owner, repo, branch });
-    }
+    const branchData = await getOrCreateBranch({ owner, repo, branch });
     const latestCommitSha = branchData.commit.sha;
     const latestCommit = await getCommit({
       owner,
@@ -263,17 +250,16 @@ function createGitHubClient(token) {
   }
 
   async function dispatchWorkflow({ owner, repo, branch, workflowFileName }) {
-    const response = await fetch(
-      createRepositoryUrl(owner, repo) +
+    const response = await request(
+      createRepositoryPath(owner, repo) +
         "/actions/workflows/" +
         encodeURIComponent(workflowFileName) +
         "/dispatches",
       {
         method: "POST",
-        headers: createGitHubJsonHeaders(),
-        body: JSON.stringify({
+        json: {
           ref: branch
-        })
+        }
       }
     );
 
@@ -288,9 +274,7 @@ function createGitHubClient(token) {
   }
 
   async function fetchJson(url) {
-    const response = await fetch(url, {
-      headers: createGitHubApiHeaders()
-    });
+    const response = await request(url);
 
     if (!response.ok) {
       return null;
@@ -303,7 +287,7 @@ function createGitHubClient(token) {
     const items = [];
     let page = 1;
 
-    while (page <= 10) {
+    while (page <= MAX_PAGINATION_PAGES) {
       const separator = baseUrl.includes("?") ? "&" : "?";
       const pageItems = await fetchJson(baseUrl + separator + "page=" + page);
 
@@ -370,10 +354,7 @@ function createGitHubClient(token) {
   }
 
   async function checkRepositoryAccess({ owner, repo }) {
-    const url = createRepositoryUrl(owner, repo);
-    const response = await fetch(url, {
-      headers: createGitHubApiHeaders()
-    });
+    const response = await request(createRepositoryPath(owner, repo));
 
     if (!response.ok) {
       throw new Error("Could not access GitHub repository.");
@@ -384,13 +365,11 @@ function createGitHubClient(token) {
 
   async function getBranch({ owner, repo, branch }) {
     const url =
-      createRepositoryUrl(owner, repo) +
+      createRepositoryPath(owner, repo) +
       "/branches/" +
       encodeURIComponent(branch);
 
-    const response = await fetch(url, {
-      headers: createGitHubApiHeaders()
-    });
+    const response = await request(url);
 
     if (response.status === 404) {
       return null;
@@ -404,9 +383,7 @@ function createGitHubClient(token) {
   }
 
   async function getDefaultBranch({ owner, repo }) {
-    const response = await fetch(createRepositoryUrl(owner, repo), {
-      headers: createGitHubApiHeaders()
-    });
+    const response = await request(createRepositoryPath(owner, repo));
 
     if (!response.ok) {
       throw new Error("Could not read repository default branch.");
@@ -416,16 +393,39 @@ function createGitHubClient(token) {
     return data.default_branch || "main";
   }
 
+  async function getOrCreateBranch({ owner, repo, branch }) {
+    const existingBranch = await getBranch({ owner, repo, branch });
+
+    if (existingBranch) {
+      return existingBranch;
+    }
+
+    const defaultBranch = await getDefaultBranch({ owner, repo });
+    const sourceBranch = await getBranch({ owner, repo, branch: defaultBranch });
+
+    if (!sourceBranch || !sourceBranch.commit || !sourceBranch.commit.sha) {
+      throw new Error("Could not find the repository default branch.");
+    }
+
+    await createBranch({
+      owner,
+      repo,
+      branch,
+      fromSha: sourceBranch.commit.sha
+    });
+
+    return sourceBranch;
+  }
+
   async function createBranch({ owner, repo, branch, fromSha }) {
-    const response = await fetch(
-      createRepositoryUrl(owner, repo) + "/git/refs",
+    const response = await request(
+      createRepositoryPath(owner, repo) + "/git/refs",
       {
         method: "POST",
-        headers: createGitHubJsonHeaders(),
-        body: JSON.stringify({
+        json: {
           ref: "refs/heads/" + branch,
           sha: fromSha
-        })
+        }
       }
     );
 
@@ -441,15 +441,15 @@ function createGitHubClient(token) {
 
   async function listBranches({ owner, repo, prefix, perPage = 100 }) {
     const url =
-      createRepositoryUrl(owner, repo) +
+      createRepositoryPath(owner, repo) +
       "/branches?per_page=" + encodeURIComponent(perPage);
 
-    const response = await fetch(url, {
-      headers: createGitHubApiHeaders()
-    });
+    const response = await request(url);
 
     if (!response.ok) {
-      throw new Error("Could not list branches.\n\n" + (await readGitHubError(response)));
+      throw new Error(
+        "Could not list branches.\n\n" + (await readGitHubError(response))
+      );
     }
 
     const branches = await response.json();
@@ -472,16 +472,19 @@ function createGitHubClient(token) {
 
   async function getCommitBySha({ owner, repo, sha }) {
     const url =
-      createRepositoryUrl(owner, repo) +
+      createRepositoryPath(owner, repo) +
       "/commits/" +
       encodeURIComponent(sha);
 
-    const response = await fetch(url, {
-      headers: createGitHubApiHeaders()
-    });
+    const response = await request(url);
 
     if (!response.ok) {
-      throw new Error("Could not read commit " + sha + ".\n\n" + (await readGitHubError(response)));
+      throw new Error(
+        "Could not read commit " +
+          sha +
+          ".\n\n" +
+          (await readGitHubError(response))
+      );
     }
 
     return response.json();
@@ -489,13 +492,11 @@ function createGitHubClient(token) {
     
   async function getCommit({ owner, repo, commitSha }) {
     const url =
-      createRepositoryUrl(owner, repo) +
+      createRepositoryPath(owner, repo) +
       "/git/commits/" +
       encodeURIComponent(commitSha);
 
-    const response = await fetch(url, {
-      headers: createGitHubApiHeaders()
-    });
+    const response = await request(url);
 
     if (!response.ok) {
       throw new Error("Could not read latest GitHub commit.");
@@ -505,13 +506,12 @@ function createGitHubClient(token) {
   }
 
   async function createBlob({ owner, repo, content, encoding }) {
-    const response = await fetch(createRepositoryUrl(owner, repo) + "/git/blobs", {
+    const response = await request(createRepositoryPath(owner, repo) + "/git/blobs", {
       method: "POST",
-      headers: createGitHubJsonHeaders(),
-      body: JSON.stringify({
+      json: {
         content,
         encoding
-      })
+      }
     });
 
     if (!response.ok) {
@@ -522,13 +522,12 @@ function createGitHubClient(token) {
   }
 
   async function createTree({ owner, repo, baseTreeSha, treeItems }) {
-    const response = await fetch(createRepositoryUrl(owner, repo) + "/git/trees", {
+    const response = await request(createRepositoryPath(owner, repo) + "/git/trees", {
       method: "POST",
-      headers: createGitHubJsonHeaders(),
-      body: JSON.stringify({
+      json: {
         base_tree: baseTreeSha,
         tree: treeItems
-      })
+      }
     });
 
     if (!response.ok) {
@@ -547,14 +546,13 @@ function createGitHubClient(token) {
     treeSha,
     parentCommitSha
   }) {
-    const response = await fetch(createRepositoryUrl(owner, repo) + "/git/commits", {
+    const response = await request(createRepositoryPath(owner, repo) + "/git/commits", {
       method: "POST",
-      headers: createGitHubJsonHeaders(),
-      body: JSON.stringify({
+      json: {
         message,
         tree: treeSha,
         parents: [parentCommitSha]
-      })
+      }
     });
 
     if (!response.ok) {
@@ -565,17 +563,16 @@ function createGitHubClient(token) {
   }
 
   async function updateBranchReference({ owner, repo, branch, newCommitSha }) {
-    const response = await fetch(
-      createRepositoryUrl(owner, repo) +
+    const response = await request(
+      createRepositoryPath(owner, repo) +
         "/git/refs/heads/" +
         encodeURIComponent(branch),
       {
         method: "PATCH",
-        headers: createGitHubJsonHeaders(),
-        body: JSON.stringify({
+        json: {
           sha: newCommitSha,
           force: false
-        })
+        }
       }
     );
 
@@ -586,13 +583,35 @@ function createGitHubClient(token) {
     return response.json();
   }
 
-  function createRepositoryUrl(owner, repo) {
+  function createRepositoryPath(owner, repo) {
     return (
-      "https://api.github.com/repos/" +
+      "/repos/" +
       encodeURIComponent(owner) +
       "/" +
       encodeURIComponent(repo)
     );
+  }
+
+  function request(path, { json, headers, ...options } = {}) {
+    const requestHeaders = {
+      ...createGitHubApiHeaders(),
+      ...headers
+    };
+    const requestOptions = {
+      ...options,
+      headers: requestHeaders
+    };
+
+    if (json !== undefined) {
+      requestHeaders["Content-Type"] = "application/json";
+      requestOptions.body = JSON.stringify(json);
+    }
+
+    return fetchImpl(toApiUrl(path), requestOptions);
+  }
+
+  function toApiUrl(path) {
+    return /^https?:\/\//i.test(path) ? path : normalizedApiUrl + path;
   }
 
   function createGitHubApiHeaders() {
@@ -600,13 +619,6 @@ function createGitHubClient(token) {
       Authorization: "Bearer " + token,
       Accept: "application/vnd.github+json",
       "X-GitHub-Api-Version": "2022-11-28"
-    };
-  }
-
-  function createGitHubJsonHeaders() {
-    return {
-      ...createGitHubApiHeaders(),
-      "Content-Type": "application/json"
     };
   }
 
