@@ -24,7 +24,8 @@ export function generateTeachBooksFiles(book, options = {}) {
       title: safeTitle,
       owner,
       repo,
-      branch
+      branch,
+      hasBibliography: Boolean(book.bibliography)
     })
   });
 
@@ -44,6 +45,17 @@ export function generateTeachBooksFiles(book, options = {}) {
       content: generateChapterMarkdown(chapter, index)
     });
   });
+
+  if (book.bibliography) {
+    files.push({
+      path: "book/bibliography.md",
+      content: generateBibliographyMarkdown(book.bibliography)
+    });
+    files.push({
+      path: "book/references.bib",
+      content: generateBibTex(book.bibliography.references)
+    });
+  }
 
   getBookImageFiles(book).forEach(function (imageFile) {
     files.push(imageFile);
@@ -86,10 +98,14 @@ jobs:
 `;
 }
 
-function generateConfig({ title, owner, repo, branch }) {
+function generateConfig({ title, owner, repo, branch, hasBibliography }) {
+  const bibliographyConfig = hasBibliography
+    ? "\nbibtex_bibfiles:\n  - references.bib\n"
+    : "";
+
   return `title: ${quoteYaml(title)}
 author: Generated with Plain Text to Markdown Converter
-
+${bibliographyConfig}
 execute:
   execute_notebooks: "off"
   exclude_patterns: []
@@ -140,9 +156,16 @@ function generateToc(book) {
 
   const chapterLines = book.chapters
     .map(function (chapter, index) {
-      return "      - file: chapters/" + removeExtension(makeChapterFileName(chapter, index));
+      return "      - file: " + removeExtension(getChapterPath(chapter, index));
     })
     .join("\n");
+  const bibliographyPart = book.bibliography
+    ? `
+  - caption: References
+    chapters:
+      - file: bibliography
+`
+    : "";
 
   return `format: jb-book
 root: intro.md
@@ -151,6 +174,7 @@ parts:
   - caption: Chapters
     chapters:
 ${chapterLines}
+${bibliographyPart}
 `;
 }
 
@@ -159,11 +183,59 @@ function canReuseSourceToc(book) {
     book &&
     book.teachBooksToc &&
     book.teachBooksToc.text &&
+    !book.bibliography &&
     Array.isArray(book.chapters) &&
     book.chapters.every(function (chapter) {
       return Boolean(getSafeBookPath(chapter.sourcePath));
     })
   );
+}
+
+function generateBibliographyMarkdown(bibliography) {
+  const title = bibliography.title || "Bibliography";
+  const body = convertBodyTextToMarkdown(bibliography.content || "");
+  const introduction = body ? "\n\n" + body : "";
+
+  return `# ${title}${introduction}
+
+\`\`\`{bibliography}
+:style: plain
+\`\`\`
+`;
+}
+
+function generateBibTex(references) {
+  const entries = (Array.isArray(references) ? references : []).map(
+    function (reference) {
+      const fields = [
+        "  title = {" + escapeBibTex(reference.title || "Untitled source") + "}",
+        "  author = {" +
+          escapeBibTex(normalizeBibTexAuthors(reference.authors)) +
+          "}"
+      ];
+
+      if (reference.year) {
+        fields.push("  year = {" + escapeBibTex(reference.year) + "}");
+      }
+      if (reference.url) {
+        fields.push("  url = {" + escapeBibTex(reference.url) + "}");
+      }
+
+      return "@misc{" + reference.key + ",\n" + fields.join(",\n") + "\n}";
+    }
+  );
+
+  return entries.length ? entries.join("\n\n") + "\n" : "";
+}
+
+function normalizeBibTexAuthors(authors) {
+  return String(authors || "Unknown author").replace(/\s*;\s*/g, " and ");
+}
+
+function escapeBibTex(value) {
+  return String(value || "").replace(/[\\{}%&#_]/g, function (character) {
+    return character === "\\" ? "\\textbackslash{}" : "\\" + character;
+  });
 }
 
 function generateIntro(book) {

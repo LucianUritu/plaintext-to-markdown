@@ -29,6 +29,17 @@ export function formatPublishError(error) {
     });
   }
 
+  if (/could not start github actions workflow/i.test(message)) {
+    return buildMessage({
+      title: "The GitHub Action did not start.",
+      whatHappened:
+        "The book files were uploaded, but GitHub did not start the build workflow.",
+      nextStep:
+        "Publish again. If it still does not start, open the repository Actions tab and check that Actions are enabled.",
+      technical: message
+    });
+  }
+
   if (
     status === 403 ||
     /resource not accessible|workflow|scope|permission|forbidden/i.test(message)
@@ -72,17 +83,6 @@ export function formatPublishError(error) {
         "GitHub rejected one of the file upload steps before the book build started.",
       nextStep:
         "Publish again. If the message mentions workflows or permissions, sign out and sign back in with GitHub first.",
-      technical: message
-    });
-  }
-
-  if (/could not start github actions workflow/i.test(message)) {
-    return buildMessage({
-      title: "The GitHub Action did not start.",
-      whatHappened:
-        "The book files were uploaded, but GitHub did not start the build workflow.",
-      nextStep:
-        "Publish again. If it still does not start, open the repository Actions tab and check that Actions are enabled.",
       technical: message
     });
   }

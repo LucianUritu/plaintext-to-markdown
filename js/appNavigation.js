@@ -62,6 +62,10 @@ export class AppNavigation {
           chapterId: params.get("chapter") || ""
         };
       }
+
+      if (type === "bibliography") {
+        return { view: "editor", type: "bibliography" };
+      }
     }
 
     return view === "home" ? { view: "home" } : null;

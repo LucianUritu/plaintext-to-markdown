@@ -92,6 +92,10 @@ export function markdownToHtml(markdown, imagePreviewUrls = {}) {
 function renderInlineMarkdown(text) {
   let safeText = escapeHtml(text);
 
+  safeText = safeText.replace(
+    /\{cite\}`([a-z0-9._:-]+)`/gi,
+    '<span class="citation-preview" title="Citation: $1">[$1]</span>'
+  );
   safeText = safeText.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
   safeText = safeText.replace(/\*(.+?)\*/g, "<em>$1</em>");
 

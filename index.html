@@ -66,6 +66,9 @@
           </button>
           <button id="closeBookButton" class="secondary">Close Book</button>
           <button id="addChapterButton">Add Chapter</button>
+          <button id="addBibliographyButton" class="secondary">
+            Add Bibliography
+          </button>
           <button id="removeChapterButton">Remove a Chapter</button>
         </div>
       </div>
@@ -119,6 +122,66 @@
           placeholder="Image alt text, e.g. Diagram of programming languages"
         />
       </div>
+
+      <div id="chapterCitationTools" class="citation-tools hidden">
+        <div>
+          <strong>Cite a reference</strong>
+          <span>Insert a source from your bibliography at the cursor.</span>
+        </div>
+        <select id="citationReferenceSelect" aria-label="Reference to cite"></select>
+        <button id="insertCitationButton" type="button">Insert Citation</button>
+      </div>
+
+      <section id="bibliographyManager" class="bibliography-manager hidden">
+        <div class="bibliography-heading">
+          <div>
+            <h2>References</h2>
+            <p>Add each source once, then cite it from any chapter.</p>
+          </div>
+          <span id="referenceCount" class="reference-count">0 references</span>
+        </div>
+
+        <form id="referenceForm" class="reference-form">
+          <input id="referenceIdInput" type="hidden" />
+          <label>
+            Author or authors
+            <input
+              id="referenceAuthorsInput"
+              type="text"
+              placeholder="Jane Smith and John Doe"
+            />
+          </label>
+          <label>
+            Title <span aria-hidden="true">*</span>
+            <input
+              id="referenceTitleInput"
+              type="text"
+              placeholder="Title of the book, paper, or webpage"
+              required
+            />
+          </label>
+          <label>
+            Year
+            <input id="referenceYearInput" type="text" placeholder="2026" />
+          </label>
+          <label>
+            URL
+            <input
+              id="referenceUrlInput"
+              type="url"
+              placeholder="https://example.com/source"
+            />
+          </label>
+          <div class="reference-form-actions">
+            <button id="saveReferenceButton" type="submit">Add Reference</button>
+            <button id="cancelReferenceEditButton" type="button" class="secondary hidden">
+              Cancel Edit
+            </button>
+          </div>
+        </form>
+
+        <div id="referenceList" class="reference-list"></div>
+      </section>
 
       <div class="workspace">
         <section class="panel">

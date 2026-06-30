@@ -1,4 +1,5 @@
 import {
+  addBibliography,
   addChapter,
   createNewBook,
   findChapterById,
@@ -6,8 +7,11 @@ import {
   moveChapter,
   removeChapter,
   saveBook,
+  setActiveBibliography,
   setActiveChapter,
   setActiveIntroduction,
+  updateBibliographyContent,
+  updateBibliographyTitle,
   updateBookTitle,
   updateChapterContent,
   updateChapterTitle,
@@ -24,6 +28,7 @@ import {
 
 import { ChoiceModal } from "./choiceModal.js";
 import { AppNavigation } from "./appNavigation.js";
+import { BibliographyController } from "./bibliographyController.js";
 import { exampleText } from "./examples.js";
 import { copyMarkdown, downloadMarkdown } from "./fileActions.js";
 import { loadGitHubBook } from "./githubApi.js";
@@ -78,6 +83,16 @@ document.addEventListener("DOMContentLoaded", function () {
       return { view: "home" };
     }
   });
+  const bibliographyController = new BibliographyController({
+    elements,
+    getBook: function () {
+      return currentBook;
+    },
+    setStatus: function (message) {
+      setStatus(message);
+    },
+    onContentChanged: updateOutputs
+  });
 
   function setStatus(message, duration) {
     showStatus(elements.statusMessage, message, duration);
@@ -116,6 +131,15 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (activeEditorType === "introduction") {
       updateIntroductionContent(
+        currentBook,
+        elements.plainTextInput.value
+      );
+
+      return;
+    }
+
+    if (activeEditorType === "bibliography" && currentBook.bibliography) {
+      updateBibliographyContent(
         currentBook,
         elements.plainTextInput.value
       );
@@ -196,6 +220,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
     elements.bookTitleInput.value = currentBook.title;
     elements.chapterList.innerHTML = "";
+    elements.addBibliographyButton.disabled = Boolean(currentBook.bibliography);
+    elements.addBibliographyButton.textContent = currentBook.bibliography
+      ? "Bibliography Added"
+      : "Add Bibliography";
 
     if (!currentBook.hideIntroductionCard) {
       const introductionCard = document.createElement("button");
@@ -326,6 +354,26 @@ document.addEventListener("DOMContentLoaded", function () {
       elements.chapterList.appendChild(chapterCard);
     });
 
+    if (currentBook.bibliography) {
+      const bibliographyCard = document.createElement("button");
+      bibliographyCard.className = "chapter-card bibliography-card";
+      bibliographyCard.type = "button";
+      bibliographyCard.innerHTML =
+        "<strong>Bibliography</strong>" +
+        "<span>" +
+        escapeHtml(currentBook.bibliography.title) +
+        "</span>" +
+        "<small>" +
+        currentBook.bibliography.references.length +
+        " reference" +
+        (currentBook.bibliography.references.length === 1 ? "" : "s") +
+        "</small>";
+      bibliographyCard.addEventListener("click", function () {
+        navigation.navigate({ view: "editor", type: "bibliography" });
+      });
+      elements.chapterList.appendChild(bibliographyCard);
+    }
+
     showView(elements.bookView, views);
     versionHistoryPanel.show();
   }
@@ -380,6 +428,7 @@ document.addEventListener("DOMContentLoaded", function () {
     activeChapter = null;
 
     setActiveIntroduction(currentBook);
+    bibliographyController.configureFor("introduction");
 
     elements.chapterTitleInput.placeholder = "Introduction title";
     elements.chapterTitleInput.value =
@@ -410,11 +459,34 @@ document.addEventListener("DOMContentLoaded", function () {
     activeChapter = chapter;
 
     setActiveChapter(currentBook, chapter.id);
+    bibliographyController.configureFor("chapter");
 
     elements.chapterTitleInput.placeholder = "Chapter title";
     elements.chapterTitleInput.value = chapter.title;
     elements.plainTextInput.value = chapter.content;
 
+    updateOutputs();
+    versionHistoryPanel.hide();
+    showView(elements.editorView, views);
+    return true;
+  }
+
+  function openBibliography() {
+    if (!currentBook || !currentBook.bibliography) {
+      setStatus("Add a bibliography first.");
+      return false;
+    }
+
+    activeEditorType = "bibliography";
+    activeChapter = null;
+    setActiveBibliography(currentBook);
+    bibliographyController.configureFor("bibliography");
+
+    elements.chapterTitleInput.placeholder = "Bibliography title";
+    elements.chapterTitleInput.value = currentBook.bibliography.title;
+    elements.plainTextInput.value = currentBook.bibliography.content;
+
+    bibliographyController.renderReferenceList();
     updateOutputs();
     versionHistoryPanel.hide();
     showView(elements.editorView, views);
@@ -662,6 +734,16 @@ document.addEventListener("DOMContentLoaded", function () {
     setStatus(chapter.title + " added.");
   });
 
+  elements.addBibliographyButton.addEventListener("click", function () {
+    if (!currentBook || currentBook.bibliography) {
+      return;
+    }
+
+    addBibliography(currentBook);
+    navigation.navigate({ view: "editor", type: "bibliography" });
+    setStatus("Bibliography added. Add your first reference.");
+  });
+
   elements.removeChapterButton.addEventListener("click", removeChapterFromBook);
 
   elements.publishPreviewButton.addEventListener("click", function () {
@@ -713,6 +795,16 @@ document.addEventListener("DOMContentLoaded", function () {
       currentBook.introduction.title =
         elements.chapterTitleInput.value.trim() || "Introduction";
 
+      return;
+    }
+
+    if (activeEditorType === "bibliography" && currentBook.bibliography) {
+      updateBibliographyTitle(
+        currentBook,
+        elements.chapterTitleInput.value
+      );
+      currentBook.bibliography.title =
+        elements.chapterTitleInput.value.trim() || "Bibliography";
       return;
     }
 
@@ -810,6 +902,15 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
+    if (state.view === "editor" && state.type === "bibliography") {
+      if (!openBibliography()) {
+        navigation.replace({ view: "book" });
+        renderBookView();
+      }
+
+      return;
+    }
+
     if (state.view === "editor" && state.type === "chapter") {
       if (!openChapter(state.chapterId)) {
         navigation.replace({ view: "book" });
@@ -826,6 +927,10 @@ document.addEventListener("DOMContentLoaded", function () {
   function getCurrentFileName() {
     if (activeEditorType === "introduction") {
       return "intro.md";
+    }
+
+    if (activeEditorType === "bibliography") {
+      return "bibliography.md";
     }
 
     if (!activeChapter) {

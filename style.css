@@ -442,6 +442,12 @@ pre {
   font-size: 18px;
 }
 
+.chapter-card small {
+  margin-top: 8px;
+  color: #6b7280;
+  font-size: 13px;
+}
+
 .chapter-card:hover {
   opacity: 1;
   transform: translateY(-2px);
@@ -473,6 +479,16 @@ pre {
 
 .introduction-card {
   cursor: pointer;
+}
+
+.bibliography-card {
+  border: 1px solid #c4b5fd;
+  background: #faf8ff;
+  cursor: pointer;
+}
+
+.bibliography-card strong {
+  color: #6d28d9;
 }
 
 /* Published versions */
@@ -659,6 +675,185 @@ pre {
   border-radius: 8px;
   font-size: 16px;
   font-weight: bold;
+}
+
+.citation-tools {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  background: #eff6ff;
+}
+
+.citation-tools.hidden,
+.bibliography-manager.hidden {
+  display: none;
+}
+
+.citation-tools > div {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.citation-tools span {
+  color: #4b5563;
+  font-size: 13px;
+}
+
+.citation-tools select {
+  min-width: 280px;
+  max-width: 440px;
+  padding: 10px 12px;
+  border: 1px solid #93c5fd;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.bibliography-manager {
+  margin: 0 0 18px;
+  padding: 20px;
+  border: 1px solid #ddd6fe;
+  border-radius: 12px;
+  background: #faf8ff;
+}
+
+.bibliography-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.bibliography-heading h2,
+.bibliography-heading p {
+  margin: 0;
+}
+
+.bibliography-heading p {
+  margin-top: 4px;
+  color: #6b7280;
+}
+
+.reference-count {
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #ede9fe;
+  color: #5b21b6;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.reference-form {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr 120px;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.reference-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #374151;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.reference-form label:nth-of-type(4) {
+  grid-column: 1 / 3;
+}
+
+.reference-form input {
+  min-width: 0;
+  padding: 10px 11px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 400;
+}
+
+.reference-form-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.reference-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.reference-empty {
+  margin: 0;
+  padding: 18px;
+  border: 1px dashed #c4b5fd;
+  border-radius: 9px;
+  color: #6b7280;
+  text-align: center;
+}
+
+.reference-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 9px;
+  background: #ffffff;
+}
+
+.reference-item__details {
+  min-width: 0;
+  flex: 1;
+}
+
+.reference-item__details strong,
+.reference-item__details span {
+  display: block;
+}
+
+.reference-item__details span {
+  margin-top: 3px;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.reference-item__key {
+  padding: 4px 7px;
+  border-radius: 6px;
+  background: #f3f4f6;
+  color: #4b5563;
+  font-family: Consolas, Monaco, monospace;
+  font-size: 12px;
+}
+
+.reference-item__actions {
+  display: flex;
+  gap: 7px;
+}
+
+.reference-item__actions button {
+  padding: 7px 10px;
+  font-size: 13px;
+}
+
+.citation-preview {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #ede9fe;
+  color: #5b21b6;
+  font-weight: 700;
 }
 
 /* Publish result */
@@ -1030,6 +1225,14 @@ pre {
   .preview {
     min-height: 300px;
   }
+
+  .reference-form {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .reference-form label:nth-of-type(4) {
+    grid-column: auto;
+  }
 }
 
 @media (max-width: 700px) {
@@ -1040,6 +1243,9 @@ pre {
   .github-books-header,
   .github-book-card,
   .editor-topbar,
+  .citation-tools,
+  .bibliography-heading,
+  .reference-item,
   .publish-url-row {
     flex-direction: column;
     align-items: stretch;
@@ -1057,5 +1263,15 @@ pre {
   .publish-url-row input {
     min-width: 0;
     width: 100%;
+  }
+
+  .citation-tools select,
+  .reference-form {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .reference-form {
+    grid-template-columns: 1fr;
   }
 }
