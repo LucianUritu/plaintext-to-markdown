@@ -306,7 +306,7 @@ class TeachBooksService {
       chapters.push({
         id: "github-chapter-" + index,
         title: chapterDocument.title || "Chapter " + (index + 1),
-        content: chapterDocument.content,
+        content: joinDocumentTitleAndContent(chapterDocument),
         sourcePath: chapterPath,
         tocCaption: chapterEntry.caption || ""
       });
@@ -353,6 +353,10 @@ function createFallbackChapter() {
     title: "Untitled Chapter",
     content: ""
   };
+}
+
+function joinDocumentTitleAndContent(document) {
+  return [document.title, document.content].filter(Boolean).join("\n\n");
 }
 
 function isIntroductionTitle(title) {

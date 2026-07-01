@@ -285,22 +285,16 @@ ${markdown}
 }
 
 function generateChapterMarkdown(chapter, index, bibliography) {
-  const title = chapter.title || "Untitled Chapter";
   const body = migrateLegacyCitations(
-    convertBodyTextToMarkdown(chapter.content || ""),
+    plainTextToMarkdown(chapter.content || ""),
     bibliography
   );
 
   if (body.length === 0) {
-    return `# ${title}
-
-`;
+    return "";
   }
 
-  return `# ${title}
-
-${body}
-`;
+  return body + "\n";
 }
 
 function convertBodyTextToMarkdown(text) {

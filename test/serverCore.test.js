@@ -101,6 +101,7 @@ test("GitHub books restore bibliography pages and references", async () => {
   const loaded = await new TeachBooksService(githubClient).loadBook({ owner: "alice", repoName: "book", branch: "main" });
   assert.equal(loaded.chapters.length, 1);
   assert.equal(loaded.chapters[0].title, "One");
+  assert.equal(loaded.chapters[0].content, "One\n\nBody");
   assert.equal(loaded.bibliography.content, "Notes");
   assert.equal(loaded.bibliography.references[0].title, "Reliable Source");
 });

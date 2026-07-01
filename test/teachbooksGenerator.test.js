@@ -32,13 +32,18 @@ test("chapter filenames are numbered and slugged", async () => {
   const files = await filesFor(book({ chapters: [{ title: "Hello, World!", content: "" }] }));
   assert.ok(byPath(files, "book/chapters/01-hello-world.md"));
 });
-test("chapter output does not duplicate the first body heading", async () => {
+test("chapter H1 comes from the first plaintext line", async () => {
   const chapter = byPath(await filesFor(book()), "book/chapters/01-first-chapter.md").content;
-  assert.equal(chapter, "# First Chapter\n\nFirst Chapter\n\nBody.\n");
+  assert.equal(chapter, "# First Chapter\n\nBody.\n");
 });
-test("empty chapters still contain their title", async () => {
+test("tracking labels are not published as headings for empty chapters", async () => {
   const chapter = byPath(await filesFor(book({ chapters: [{ title: "Empty", content: "" }] })), "book/chapters/01-empty.md").content;
-  assert.equal(chapter, "# Empty\n\n");
+  assert.equal(chapter, "");
+});
+test("changing a tracking label does not change the published H1", async () => {
+  const chapter = byPath(await filesFor(book({ chapters: [{ title: "Internal label", content: "Public title\n\nBody." }] })), "book/chapters/01-internal-label.md").content;
+  assert.match(chapter, /^# Public title/);
+  assert.doesNotMatch(chapter, /Internal label/);
 });
 test("empty introductions receive useful fallback content", async () => {
   const intro = byPath(await filesFor(book({ introduction: { title: "Start", content: "" } })), "book/intro.md").content;
