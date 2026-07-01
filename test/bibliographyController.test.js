@@ -13,9 +13,14 @@ function context() {
     referenceUrlInput: field(), saveReferenceButton: field(), cancelReferenceEditButton: field(),
     referenceList: field(), referenceCount: field(), plainTextInput: field()
   };
+  const book = {
+    bibliography: {
+      references: [{ key: "smith2025source", title: "Reliable Source" }]
+    }
+  };
   return controllerModule.then(({ BibliographyController }) => ({
     elements, statuses,
-    controller: new BibliographyController({ elements, getBook: () => null, setStatus: (message) => statuses.push(message), onContentChanged: () => changed++ }),
+    controller: new BibliographyController({ elements, getBook: () => book, setStatus: (message) => statuses.push(message), onContentChanged: () => changed++ }),
     changed: () => changed
   }));
 }
@@ -50,7 +55,7 @@ test("inserting citations replaces selected text and reports success", async () 
     setRangeText(value, start, end) { this.value = this.value.slice(0, start) + value + this.value.slice(end); }
   };
   controller.insertCitation();
-  assert.equal(elements.plainTextInput.value, "Read {cite}`smith2025source` now");
+  assert.equal(elements.plainTextInput.value, "Read {ref}`Reliable Source <reference-smith2025source>` now");
   assert.equal(changed(), 1);
   assert.equal(statuses.at(-1), "Citation inserted.");
 });

@@ -1,9 +1,11 @@
 const {
   decodeBase64Text,
+  parseBibTexReferences,
   parseMarkdownDocument,
   readChapterEntriesFromToc,
   readChapterPathsFromToc,
   readRootPathFromToc,
+  stripGeneratedBibliographyContent,
 } = require("./teachBooksParser");
 
 class TeachBooksService {
@@ -68,14 +70,49 @@ class TeachBooksService {
       decodeBase64Text(introFile.content)
     );
     const chapterEntries = readChapterEntriesFromToc(tocText);
+    const bibliographyEntry = chapterEntries.find(isBibliographyEntry);
+    const contentChapterEntries = chapterEntries.filter(function (entry) {
+      return entry !== bibliographyEntry;
+    });
+    const [bibliographyFile, referencesFile] = await Promise.all([
+      bibliographyEntry
+        ? this.githubClient.fetchRepositoryFile({
+            owner,
+            repo: repoName,
+            branch,
+            path: "book/" + bibliographyEntry.path
+          })
+        : null,
+      this.githubClient.fetchRepositoryFile({
+        owner,
+        repo: repoName,
+        branch,
+        path: "book/references.bib"
+      })
+    ]);
+    const bibliographyDocument = bibliographyFile
+      ? parseMarkdownDocument(decodeBase64Text(bibliographyFile.content))
+      : null;
+    const bibliography = bibliographyDocument || referencesFile
+      ? {
+          id: "github-bibliography",
+          title: (bibliographyDocument && bibliographyDocument.title) || "Bibliography",
+          content: bibliographyDocument
+            ? stripGeneratedBibliographyContent(bibliographyDocument.content)
+            : "",
+          references: referencesFile
+            ? parseBibTexReferences(decodeBase64Text(referencesFile.content))
+            : []
+        }
+      : null;
     const hideIntroductionCard =
-      chapterEntries.length > 0 &&
+      contentChapterEntries.length > 0 &&
       !isIntroductionTitle(introDocument.title);
     const chapters = await this.loadChapters({
       owner,
       repoName,
       branch,
-      entries: chapterEntries
+      entries: contentChapterEntries
     });
     const images = await this.loadImages({
       owner,
@@ -106,6 +143,7 @@ class TeachBooksService {
         sourcePath: rootPath
       },
       chapters: chapters.length > 0 ? chapters : [createFallbackChapter()],
+      bibliography,
       images,
       activeChapterId: null,
       activeItemType: hideIntroductionCard ? "chapter" : "introduction"
@@ -319,6 +357,13 @@ function createFallbackChapter() {
 
 function isIntroductionTitle(title) {
   return String(title || "").trim().toLowerCase() === "introduction";
+}
+
+function isBibliographyEntry(entry) {
+  return Boolean(entry) && (
+    /(^|\/)bibliography\.md$/i.test(entry.path) ||
+    /^references$/i.test(String(entry.caption || "").trim())
+  );
 }
 
 function uniqueBranches(branches) {

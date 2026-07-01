@@ -141,6 +141,47 @@ function parseMarkdownDocument(markdown) {
   };
 }
 
+function parseBibTexReferences(bibTex) {
+  const references = [];
+  const entryPattern = /@[a-z]+\s*\{\s*([^,\s]+)\s*,([\s\S]*?)\n\s*\}/gi;
+  let entryMatch = entryPattern.exec(String(bibTex || ""));
+
+  while (entryMatch) {
+    const fields = {};
+    entryMatch[2].split(/\r?\n/).forEach(function (line) {
+      const fieldMatch = line.match(/^\s*(title|author|year|url)\s*=\s*\{(.*)\}\s*,?\s*$/i);
+      if (fieldMatch) {
+        fields[fieldMatch[1].toLowerCase()] = unescapeBibTex(fieldMatch[2]);
+      }
+    });
+
+    references.push({
+      id: "github-reference-" + references.length,
+      key: entryMatch[1],
+      authors: String(fields.author || "").replace(/\s+and\s+/gi, "; "),
+      title: fields.title || "Untitled source",
+      year: fields.year || "",
+      url: fields.url || ""
+    });
+    entryMatch = entryPattern.exec(String(bibTex || ""));
+  }
+
+  return references;
+}
+
+function stripGeneratedBibliographyContent(markdown) {
+  return String(markdown || "")
+    .replace(/<!-- bibliography-references:start -->[\s\S]*?<!-- bibliography-references:end -->/gi, "")
+    .replace(/```\{bibliography\}[\s\S]*?```/gi, "")
+    .trim();
+}
+
+function unescapeBibTex(value) {
+  return String(value || "")
+    .replace(/\\textbackslash\{\}/g, "\\")
+    .replace(/\\([{}%&#_])/g, "$1");
+}
+
 function ensureMarkdownExtension(filePath) {
   if (/\.md$/i.test(filePath)) {
     return filePath;
@@ -151,9 +192,11 @@ function ensureMarkdownExtension(filePath) {
 
 module.exports = {
   decodeBase64Text,
+  parseBibTexReferences,
   parseMarkdownDocument,
   readChapterEntriesFromToc,
   readChapterPathsFromToc,
   readRootPathFromToc,
-  readYamlTitle
+  readYamlTitle,
+  stripGeneratedBibliographyContent
 };

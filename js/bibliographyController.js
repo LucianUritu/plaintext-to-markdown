@@ -144,6 +144,11 @@ export class BibliographyController {
       this.setStatus("Choose a reference first.");
       return;
     }
+    const reference = this.getBook()?.bibliography?.references.find((item) => item.key === key);
+    if (!reference) {
+      this.setStatus("That reference is no longer available.");
+      return;
+    }
     const textarea = this.elements.plainTextInput;
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
@@ -151,12 +156,17 @@ export class BibliographyController {
     const after = textarea.value.charAt(end);
     const citation =
       (before && !/\s/.test(before) ? " " : "") +
-      "{cite}`" + key + "`" +
+      this.createCitationMarkup(reference) +
       (after && !/\s/.test(after) ? " " : "");
     textarea.setRangeText(citation, start, end, "end");
     textarea.focus();
     this.onContentChanged();
     this.setStatus("Citation inserted.");
+  }
+
+  createCitationMarkup(reference) {
+    const title = String(reference.title || "Untitled source").replace(/[<>`]/g, "");
+    return "{ref}`" + title + " <reference-" + reference.key + ">`";
   }
 
   readForm() {

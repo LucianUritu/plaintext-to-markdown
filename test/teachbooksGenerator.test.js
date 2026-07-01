@@ -62,7 +62,8 @@ test("bibliographies add config, TOC, markdown, and BibTeX", async () => {
   const files = await filesFor(book({ bibliography: { title: "References", content: "Used sources.", references: [{ key: "smith2024source", authors: "Jane Smith", title: "Source", year: "2024", url: "https://example.com" }] } }));
   assert.match(byPath(files, "book/_config.yml").content, /bibtex_bibfiles/);
   assert.match(byPath(files, "book/_toc.yml").content, /caption: References/);
-  assert.match(byPath(files, "book/bibliography.md").content, /```\{bibliography}/);
+  assert.match(byPath(files, "book/bibliography.md").content, /\(reference-smith2024source\)=/);
+  assert.match(byPath(files, "book/bibliography.md").content, /### Source/);
   assert.match(byPath(files, "book/references.bib").content, /@misc\{smith2024source/);
 });
 test("BibTeX converts semicolon author separators", async () => {
@@ -76,6 +77,13 @@ test("BibTeX escapes reserved characters", async () => {
 test("empty bibliographies generate an empty BibTeX file", async () => {
   const files = await filesFor(book({ bibliography: { references: [] } }));
   assert.equal(byPath(files, "book/references.bib").content, "");
+});
+test("legacy numeric citations become readable title references", async () => {
+  const files = await filesFor(book({
+    chapters: [{ title: "Chapter", content: "Chapter\n\nSee {cite}`smith2024source`." }],
+    bibliography: { references: [{ key: "smith2024source", title: "Reliable Source", authors: "Jane Smith", year: "2024" }] }
+  }));
+  assert.match(byPath(files, "book/chapters/01-chapter.md").content, /\{ref\}`Reliable Source <reference-smith2024source>`/);
 });
 test("valid base64 images are emitted for root and chapter paths", async () => {
   const files = await filesFor(book({ images: [{ path: "images/A File.PNG", dataUrl: "data:image/png;base64,YQ==" }] }));

@@ -140,6 +140,14 @@ test("bibliography is a singleton", async () => {
   const book = service.create();
   assert.equal(service.addBibliography(book), service.addBibliography(book));
 });
+test("bibliographies and references survive repository reloads", async () => {
+  const { service } = await createContext();
+  const book = service.create();
+  service.addReference(book, { authors: "Jane Smith", title: "Source", year: "2025" });
+  const reloaded = service.load();
+  assert.equal(reloaded.bibliography.title, "Bibliography");
+  assert.equal(reloaded.bibliography.references[0].key, "smith2025source");
+});
 test("adding a reference creates a bibliography when absent", async () => {
   const { service } = await createContext();
   const book = service.create();

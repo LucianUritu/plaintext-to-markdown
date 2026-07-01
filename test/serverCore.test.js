@@ -5,12 +5,23 @@ const { HttpRouter } = require("../server/router");
 const { PagesUrlResolver, VersionBranchPagesUrlStrategy, DefaultBranchPagesUrlStrategy } = require("../server/publishingTargets");
 const { VersioningService } = require("../server/versioningService");
 const { createSessionStore } = require("../server/sessionStore");
+const { TeachBooksService } = require("../server/teachBooksService");
 
 test("base64 text is decoded", () => assert.equal(parser.decodeBase64Text(Buffer.from("héllo").toString("base64")), "héllo"));
 test("YAML titles are read and unquoted", () => assert.equal(parser.readYamlTitle('title: "My Book"'), "My Book"));
 test("missing YAML titles return empty strings", () => assert.equal(parser.readYamlTitle("author: A"), ""));
 test("markdown documents split title and body", () => assert.deepEqual(parser.parseMarkdownDocument("# Title\n\nBody"), { title: "Title", content: "Body" }));
 test("markdown without a heading remains body content", () => assert.deepEqual(parser.parseMarkdownDocument("Body"), { title: "", content: "Body" }));
+test("BibTeX references are parsed into editable reference models", () => {
+  const [reference] = parser.parseBibTexReferences("@misc{smith2024source,\n  title = {Reliable \\& Useful},\n  author = {Jane Smith and John Doe},\n  year = {2024},\n  url = {https://example.com}\n}\n");
+  assert.equal(reference.key, "smith2024source");
+  assert.equal(reference.title, "Reliable & Useful");
+  assert.equal(reference.authors, "Jane Smith; John Doe");
+});
+test("generated bibliography lists are removed from editable page content", () => {
+  const markdown = "Intro text.\n\n<!-- bibliography-references:start -->\n## References\nEntry\n<!-- bibliography-references:end -->";
+  assert.equal(parser.stripGeneratedBibliographyContent(markdown), "Intro text.");
+});
 test("TOC root defaults to intro.md", () => assert.equal(parser.readRootPathFromToc("format: jb-book"), "intro.md"));
 test("TOC root receives markdown extension", () => assert.equal(parser.readRootPathFromToc("root: start"), "start.md"));
 test("TOC chapter paths are read and deduplicated", () => {
@@ -72,6 +83,26 @@ test("secure sessions set Secure cookies", () => {
   const store = createSessionStore("secret", { secureCookie: true }); const response = fakeResponse();
   store.getOrCreateSession({ headers: {} }, response);
   assert.match(response.header, /Secure/);
+});
+test("GitHub books restore bibliography pages and references", async () => {
+  const files = {
+    "book/_config.yml": "title: Book\nbibtex_bibfiles:\n  - references.bib\n",
+    "book/_toc.yml": "format: jb-book\nroot: intro\nparts:\n  - caption: Chapters\n    chapters:\n      - file: chapters/one\n  - caption: References\n    chapters:\n      - file: bibliography\n",
+    "book/intro.md": "# Introduction\n\nWelcome",
+    "book/chapters/one.md": "# One\n\nBody",
+    "book/bibliography.md": "# Bibliography\n\nNotes\n\n<!-- bibliography-references:start -->\n## References\nGenerated list\n<!-- bibliography-references:end -->",
+    "book/references.bib": "@misc{smith2024source,\n  title = {Reliable Source},\n  author = {Jane Smith},\n  year = {2024}\n}\n"
+  };
+  const githubClient = {
+    async fetchRepositoryFile({ path }) {
+      return files[path] ? { content: Buffer.from(files[path]).toString("base64") } : null;
+    }
+  };
+  const loaded = await new TeachBooksService(githubClient).loadBook({ owner: "alice", repoName: "book", branch: "main" });
+  assert.equal(loaded.chapters.length, 1);
+  assert.equal(loaded.chapters[0].title, "One");
+  assert.equal(loaded.bibliography.content, "Notes");
+  assert.equal(loaded.bibliography.references[0].title, "Reliable Source");
 });
 
 function fakeResponse() { return { header: "", setHeader(name, value) { if (name === "Set-Cookie") this.header = value; } }; }

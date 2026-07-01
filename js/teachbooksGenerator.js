@@ -42,7 +42,7 @@ export function generateTeachBooksFiles(book, options = {}) {
   book.chapters.forEach(function (chapter, index) {
     files.push({
       path: "book/" + getChapterPath(chapter, index),
-      content: generateChapterMarkdown(chapter, index)
+      content: generateChapterMarkdown(chapter, index, book.bibliography)
     });
   });
 
@@ -195,13 +195,33 @@ function generateBibliographyMarkdown(bibliography) {
   const title = bibliography.title || "Bibliography";
   const body = convertBodyTextToMarkdown(bibliography.content || "");
   const introduction = body ? "\n\n" + body : "";
+  const references = Array.isArray(bibliography.references)
+    ? bibliography.references
+    : [];
+  const referenceList = references.length
+    ? references.map(generateReferenceMarkdown).join("\n\n")
+    : "No references have been added yet.";
 
   return `# ${title}${introduction}
 
-\`\`\`{bibliography}
-:style: plain
-\`\`\`
+<!-- bibliography-references:start -->
+## References
+
+${referenceList}
+<!-- bibliography-references:end -->
 `;
+}
+
+function generateReferenceMarkdown(reference) {
+  const title = reference.title || "Untitled source";
+  const authors = reference.authors || "Unknown author";
+  const year = reference.year ? " (" + reference.year + ")" : "";
+  const sourceLink = reference.url ? " [Open source](" + reference.url + ")" : "";
+
+  return `(reference-${reference.key})=
+### ${title}
+
+${authors}${year}.${sourceLink}`;
 }
 
 function generateBibTex(references) {
@@ -264,9 +284,12 @@ ${markdown}
 `;
 }
 
-function generateChapterMarkdown(chapter, index) {
+function generateChapterMarkdown(chapter, index, bibliography) {
   const title = chapter.title || "Untitled Chapter";
-  const body = convertBodyTextToMarkdown(chapter.content || "");
+  const body = migrateLegacyCitations(
+    convertBodyTextToMarkdown(chapter.content || ""),
+    bibliography
+  );
 
   if (body.length === 0) {
     return `# ${title}
@@ -295,6 +318,25 @@ function convertBodyTextToMarkdown(text) {
 function makeChapterFileName(chapter, index) {
   const title = chapter.title || "chapter-" + (index + 1);
   return String(index + 1).padStart(2, "0") + "-" + slugify(title) + ".md";
+}
+
+function migrateLegacyCitations(markdown, bibliography) {
+  const references = bibliography && Array.isArray(bibliography.references)
+    ? bibliography.references
+    : [];
+  const referencesByKey = new Map(references.map(function (reference) {
+    return [reference.key, reference];
+  }));
+
+  return String(markdown || "").replace(
+    /\{cite\}`([a-z0-9._:-]+)`/gi,
+    function (match, key) {
+      const reference = referencesByKey.get(key);
+      if (!reference) return match;
+      const readableTitle = String(reference.title || "Untitled source").replace(/[<>`]/g, "");
+      return "{ref}`" + readableTitle + " <reference-" + key + ">`";
+    }
+  );
 }
 
 function getIntroductionPath(book) {

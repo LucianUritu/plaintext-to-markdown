@@ -41,6 +41,10 @@ test("renderer renders bold and italic", async () => {
   assert.match(html, /<em>italic<\/em>/);
 });
 test("renderer decorates citations", async () => assert.match((await renderer).markdownToHtml("{cite}`smith2024book`"), /citation-preview/));
+test("renderer shows readable reference titles", async () => {
+  const html = (await renderer).markdownToHtml("{ref}`Reliable Source <reference-smith2024book>`");
+  assert.match(html, />Reliable Source<\/span>/);
+});
 test("renderer uses image preview URLs", async () => assert.match((await renderer).markdownToHtml("![A](images/a.png)", { "images/a.png": "blob:test" }), /src="blob:test"/));
 test("renderer escapes image attributes", async () => assert.match((await renderer).markdownToHtml("![A & B](x.png)"), /A &amp; B/));
 test("safe filename strips unsupported characters", async () => assert.equal((await utils).makeSafeFileName(" A Weird/File?.PNG "), "a-weirdfile.png"));
