@@ -191,7 +191,7 @@ function canReuseSourceToc(book) {
   );
 }
 
-function generateBibliographyMarkdown(bibliography) {
+export function generateBibliographyMarkdown(bibliography) {
   const title = bibliography.title || "Bibliography";
   const body = convertBodyTextToMarkdown(bibliography.content || "");
   const introduction = body ? "\n\n" + body : "";

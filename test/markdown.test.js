@@ -45,6 +45,13 @@ test("renderer shows readable reference titles", async () => {
   const html = (await renderer).markdownToHtml("{ref}`Reliable Source <reference-smith2024book>`");
   assert.match(html, />Reliable Source<\/span>/);
 });
+test("renderer formats bibliography targets and entries", async () => {
+  const html = (await renderer).markdownToHtml("<!-- bibliography-references:start -->\n(reference-source)=\n### Source title\n\n[Open source](https://example.com)\n<!-- bibliography-references:end -->");
+  assert.match(html, /id="reference-source"/);
+  assert.match(html, /<h3>Source title<\/h3>/);
+  assert.match(html, /<a href="https:\/\/example.com"/);
+  assert.doesNotMatch(html, /bibliography-references:start/);
+});
 test("renderer uses image preview URLs", async () => assert.match((await renderer).markdownToHtml("![A](images/a.png)", { "images/a.png": "blob:test" }), /src="blob:test"/));
 test("renderer escapes image attributes", async () => assert.match((await renderer).markdownToHtml("![A & B](x.png)"), /A &amp; B/));
 test("safe filename strips unsupported characters", async () => assert.equal((await utils).makeSafeFileName(" A Weird/File?.PNG "), "a-weirdfile.png"));

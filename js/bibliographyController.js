@@ -96,6 +96,7 @@ export class BibliographyController {
     removeReference(this.getBook(), reference.id);
     this.resetForm();
     this.renderReferenceList();
+    this.onContentChanged();
     this.setStatus("Reference removed.");
   }
 
@@ -136,6 +137,7 @@ export class BibliographyController {
     }
     this.resetForm();
     this.renderReferenceList();
+    this.onContentChanged();
   }
 
   insertCitation() {

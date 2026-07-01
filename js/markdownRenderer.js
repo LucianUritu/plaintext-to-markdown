@@ -28,6 +28,24 @@ export function markdownToHtml(markdown, imagePreviewUrls = {}) {
       continue;
     }
 
+    if (/^<!-- bibliography-references:(?:start|end) -->$/i.test(line)) {
+      closeLists();
+      continue;
+    }
+
+    if (line.startsWith("### ")) {
+      closeLists();
+      html += "<h3>" + renderInlineMarkdown(line.substring(4)) + "</h3>";
+      continue;
+    }
+
+    const referenceTarget = line.match(/^\(reference-([a-z0-9._:-]+)\)=$/i);
+    if (referenceTarget) {
+      closeLists();
+      html += '<span id="reference-' + escapeAttribute(referenceTarget[1]) + '"></span>';
+      continue;
+    }
+
     if (isMarkdownImage(line)) {
       closeLists();
       html += renderMarkdownImage(line, imagePreviewUrls);
@@ -102,6 +120,10 @@ function renderInlineMarkdown(text) {
   );
   safeText = safeText.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
   safeText = safeText.replace(/\*(.+?)\*/g, "<em>$1</em>");
+  safeText = safeText.replace(
+    /\[([^\]]+)]\((https?:\/\/[^)]+)\)/gi,
+    '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
+  );
 
   return safeText;
 }

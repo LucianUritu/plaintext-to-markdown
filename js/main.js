@@ -40,6 +40,7 @@ import { PublishProgress } from "./publishProgress.js";
 import { PublishMessagePanel } from "./publishMessagePanel.js";
 import { PublishWorkflow } from "./publishWorkflow.js";
 import { setupEditorShortcuts } from "./shortcuts.js";
+import { generateBibliographyMarkdown } from "./teachbooksGenerator.js";
 import { escapeHtml } from "./utils.js";
 import { VersionHistoryPanel } from "./versionHistoryPanel.js";
 import { VersionPickerModal } from "./versionPickerModal.js";
@@ -116,7 +117,9 @@ document.addEventListener("DOMContentLoaded", function () {
   function updateOutputs() {
     refreshImagePreviewUrls();
 
-    const markdown = plainTextToMarkdown(elements.plainTextInput.value);
+    const markdown = activeEditorType === "bibliography" && currentBook?.bibliography
+      ? generateBibliographyMarkdown(currentBook.bibliography)
+      : plainTextToMarkdown(elements.plainTextInput.value);
 
     elements.markdownOutput.textContent = markdown;
     elements.previewOutput.innerHTML = markdownToHtml(markdown, imagePreviewUrls);
@@ -805,6 +808,7 @@ document.addEventListener("DOMContentLoaded", function () {
       );
       currentBook.bibliography.title =
         elements.chapterTitleInput.value.trim() || "Bibliography";
+      updateOutputs();
       return;
     }
 
