@@ -1350,9 +1350,8 @@ body {
 
 .brand { display: flex; align-items: center; gap: 12px; }
 .brand-mark {
-  display: grid; place-items: center; width: 38px; height: 38px;
-  border-radius: 11px; background: var(--accent); color: white;
-  font-family: Georgia, serif; font-size: 23px; font-weight: 700;
+  display: block; width: 42px; height: 42px;
+  object-fit: contain;
 }
 .brand h1 { margin: 0; color: var(--ink); font-family: Georgia, serif; font-size: 21px; }
 .brand p { margin: 1px 0 0; color: var(--muted); font-size: 12px; }
