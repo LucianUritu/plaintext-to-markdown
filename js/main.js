@@ -72,6 +72,7 @@ document.addEventListener("DOMContentLoaded", function () {
   let activeEditorType = null;
   let draggedChapterId = null;
   let suppressChapterClick = false;
+  let chapterDeleteMode = false;
 
   const editorWorkspace = document.querySelector(".studio-workspace");
   const markdownPreviewToggle = document.getElementById("markdownPreviewToggle");
@@ -243,6 +244,10 @@ document.addEventListener("DOMContentLoaded", function () {
     elements.addBibliographyButton.textContent = currentBook.bibliography
       ? "Bibliography Added"
       : "Add Bibliography";
+    elements.removeChapterButton.classList.toggle("delete-mode-active", chapterDeleteMode);
+    elements.removeChapterButton.textContent = chapterDeleteMode
+      ? "Done Removing"
+      : "Remove a Chapter";
 
     if (!currentBook.hideIntroductionCard) {
       const introductionCard = document.createElement("button");
@@ -274,7 +279,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const chapterCard = document.createElement("button");
       chapterCard.className = "chapter-card";
       chapterCard.type = "button";
-      chapterCard.draggable = true;
+      chapterCard.draggable = !chapterDeleteMode;
       chapterCard.dataset.chapterId = chapter.id;
       chapterCard.dataset.chapterIndex = index;
       chapterCard.setAttribute(
@@ -288,7 +293,29 @@ document.addEventListener("DOMContentLoaded", function () {
         "</strong>" +
         "<span>" +
         escapeHtml(chapter.title) +
-        "</span>";
+        "</span>" +
+        (chapterDeleteMode && currentBook.chapters.length > 1
+          ? '<span class="chapter-delete-button" role="button" tabindex="0" aria-label="Delete ' +
+            escapeHtml(chapter.title) +
+            '">&times;</span>'
+          : "");
+
+      const deleteButton = chapterCard.querySelector(".chapter-delete-button");
+
+      if (deleteButton) {
+        const requestDelete = function (event) {
+          event.preventDefault();
+          event.stopPropagation();
+          requestChapterDeletion(chapter);
+        };
+
+        deleteButton.addEventListener("click", requestDelete);
+        deleteButton.addEventListener("keydown", function (event) {
+          if (event.key === "Enter" || event.key === " ") {
+            requestDelete(event);
+          }
+        });
+      }
 
       chapterCard.addEventListener("click", function () {
         if (suppressChapterClick) {
@@ -512,52 +539,16 @@ document.addEventListener("DOMContentLoaded", function () {
     return true;
   }
 
-  function removeChapterFromBook() {
+  async function requestChapterDeletion(chapterToRemove) {
     saveActiveEditorContent();
-
-    if (!currentBook) {
-      setStatus("Create a book first.");
-      return;
-    }
-
-    if (currentBook.chapters.length <= 1) {
-      setStatus("You must keep at least one chapter.");
-      return;
-    }
-
-    const chapterListText = currentBook.chapters
-      .map(function (chapter, index) {
-        return index + 1 + ". " + chapter.title;
-      })
-      .join("\n");
-
-    const answer = prompt(
-      "Which chapter number do you want to remove?\n\n" + chapterListText
-    );
-
-    if (!answer) {
-      return;
-    }
-
-    const chapterNumber = Number(answer.trim());
-
-    if (
-      !Number.isInteger(chapterNumber) ||
-      chapterNumber < 1 ||
-      chapterNumber > currentBook.chapters.length
-    ) {
-      setStatus("Invalid chapter number.");
-      return;
-    }
-
-    const chapterToRemove = currentBook.chapters[chapterNumber - 1];
-
-    const confirmed = confirm(
-      "Remove this chapter?\n\nChapter " +
-      chapterNumber +
-      ": " +
-      chapterToRemove.title
-    );
+    const confirmed = await choiceModal.ask({
+      title: "Delete chapter?",
+      message: 'Are you sure you want to delete chapter "' + chapterToRemove.title + '"?',
+      choices: [
+        { label: "Delete chapter", value: true, variant: "danger" },
+        { label: "Cancel", value: false, variant: "secondary" }
+      ]
+    });
 
     if (!confirmed) {
       return;
@@ -575,8 +566,29 @@ document.addEventListener("DOMContentLoaded", function () {
       activeEditorType = null;
     }
 
+    if (currentBook.chapters.length <= 1) {
+      chapterDeleteMode = false;
+    }
+
     renderBookView();
     setStatus(result.message);
+  }
+
+  function removeChapterFromBook() {
+    if (!currentBook) {
+      setStatus("Create a book first.");
+      return;
+    }
+
+    if (currentBook.chapters.length <= 1) {
+      chapterDeleteMode = false;
+      renderBookView();
+      setStatus("You must keep at least one chapter.");
+      return;
+    }
+
+    chapterDeleteMode = !chapterDeleteMode;
+    renderBookView();
   }
 
   function getPublishTarget() {
@@ -720,6 +732,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   elements.newBookButton.addEventListener("click", function () {
     currentBook = createNewBook();
+    chapterDeleteMode = false;
     setEditorInactive();
     clearImagePreviewUrls();
 
@@ -730,6 +743,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   elements.closeBookButton.addEventListener("click", function () {
     hidePublishResult();
+    chapterDeleteMode = false;
     activeChapter = null;
     activeEditorType = null;
     navigation.navigate({ view: "home" });

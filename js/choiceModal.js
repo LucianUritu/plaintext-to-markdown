@@ -34,7 +34,11 @@ export class ChoiceModal {
       const button = document.createElement("button");
       button.type = "button";
       button.textContent = choice.label;
-      button.className = choice.variant === "secondary" ? "secondary" : "";
+      button.className = choice.variant === "secondary"
+        ? "secondary"
+        : choice.variant === "danger"
+          ? "danger"
+          : "";
       button.addEventListener("click", () => {
         this.close(choice.value);
       });

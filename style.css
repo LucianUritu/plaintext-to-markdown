@@ -1377,6 +1377,25 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent) !importa
 .chapter-list { grid-template-columns: repeat(auto-fill, minmax(245px, 1fr)); gap: 14px; }
 .chapter-card { min-height: 118px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); box-shadow: none; text-align: left; }
 .chapter-card:hover { border-color: #9eb9ab; background: #f9fcfa; box-shadow: var(--shadow); }
+.chapter-delete-button {
+  position: absolute; top: 9px; right: 9px;
+  display: grid; place-items: center;
+  width: 28px; height: 28px; margin: 0;
+  border: 1px solid #efb7b2; border-radius: 50%;
+  background: #fff1f0; color: #c7352b;
+  font-family: Arial, sans-serif; font-size: 20px !important; font-weight: 700;
+  line-height: 1; cursor: pointer;
+  transition: background .15s ease, color .15s ease, transform .15s ease;
+}
+.chapter-delete-button:hover,
+.chapter-delete-button:focus-visible {
+  background: #c7352b; color: white; transform: scale(1.06); outline: none;
+}
+#removeChapterButton.delete-mode-active {
+  border-color: #e2aaa5; background: #fff1f0; color: #a72e26;
+}
+button.danger { background: #c7352b; color: white; }
+button.danger:hover { background: #a72e26; }
 
 .github-book-card > div:first-child { min-width: 0; }
 .github-book-card h3 {
