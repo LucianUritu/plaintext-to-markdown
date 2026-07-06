@@ -1454,6 +1454,22 @@ button.danger:hover { background: #a72e26; }
 .panel-heading h2 { margin: 2px 0 0; color: var(--ink); font-family: Georgia, serif; font-size: 20px; }
 .eyebrow { color: var(--accent); font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
 .word-count { color: var(--muted); font-size: 12px; }
+.formatting-toolbar {
+  display: flex; align-items: center; gap: 3px;
+  min-height: 46px; padding: 6px 12px;
+  overflow-x: auto; border-bottom: 1px solid var(--line);
+  background: #fafaf6;
+}
+.formatting-toolbar button {
+  flex: 0 0 auto; min-width: 34px; height: 32px; padding: 0 9px;
+  border: 0; border-radius: 7px; background: transparent; color: #3f4d45;
+  box-shadow: none; font-size: 13px;
+}
+.formatting-toolbar button:hover,
+.formatting-toolbar button:focus-visible {
+  background: var(--accent-soft); color: var(--accent-dark); transform: none; outline: none;
+}
+.formatting-divider { width: 1px; height: 20px; margin: 0 5px; background: var(--line); }
 .writing-panel textarea { min-height: 555px; padding: 30px clamp(24px, 4vw, 54px); border: 0; border-radius: 0; background: transparent; color: var(--ink); font-family: Georgia, serif; font-size: 19px; line-height: 1.8; resize: vertical; }
 .writing-panel textarea:focus { box-shadow: none !important; }
 .preview, pre { min-height: 555px; padding: 30px clamp(24px, 4vw, 46px); border: 0; border-radius: 0; background: transparent; }

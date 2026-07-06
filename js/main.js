@@ -40,6 +40,7 @@ import { PublishProgress } from "./publishProgress.js";
 import { PublishMessagePanel } from "./publishMessagePanel.js";
 import { PublishWorkflow } from "./publishWorkflow.js";
 import { setupEditorShortcuts } from "./shortcuts.js";
+import { setupFormattingToolbar } from "./formattingToolbar.js";
 import { generateBibliographyMarkdown } from "./teachbooksGenerator.js";
 import { escapeHtml } from "./utils.js";
 import { VersionHistoryPanel } from "./versionHistoryPanel.js";
@@ -864,6 +865,12 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   setupEditorShortcuts({
+    textarea: elements.plainTextInput,
+    updateOutputs
+  });
+
+  setupFormattingToolbar({
+    toolbar: document.getElementById("formattingToolbar"),
     textarea: elements.plainTextInput,
     updateOutputs
   });
