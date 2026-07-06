@@ -73,6 +73,10 @@ document.addEventListener("DOMContentLoaded", function () {
   let draggedChapterId = null;
   let suppressChapterClick = false;
 
+  const editorWorkspace = document.querySelector(".studio-workspace");
+  const markdownPreviewToggle = document.getElementById("markdownPreviewToggle");
+  const wordCount = document.getElementById("wordCount");
+
   const views = [
     elements.homeView,
     elements.bookView,
@@ -124,7 +128,19 @@ document.addEventListener("DOMContentLoaded", function () {
     elements.markdownOutput.textContent = markdown;
     elements.previewOutput.innerHTML = markdownToHtml(markdown, imagePreviewUrls);
 
+    updateWritingStats();
+
     saveActiveEditorContent();
+  }
+
+  function updateWritingStats() {
+    if (!wordCount) {
+      return;
+    }
+
+    const text = elements.plainTextInput.value.trim();
+    const count = text ? text.split(/\s+/).length : 0;
+    wordCount.textContent = count + (count === 1 ? " word" : " words");
   }
 
   function saveActiveEditorContent() {
@@ -825,6 +841,13 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   elements.plainTextInput.addEventListener("input", updateOutputs);
+
+  markdownPreviewToggle.addEventListener("change", function () {
+    editorWorkspace.classList.toggle(
+      "markdown-enabled",
+      markdownPreviewToggle.checked
+    );
+  });
 
   setupEditorShortcuts({
     textarea: elements.plainTextInput,

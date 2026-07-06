@@ -3,14 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Plain Text to Markdown Converter</title>
+  <title>Bookstudio</title>
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
-  <header>
-    <div>
-      <h1>Plain Text to Markdown Converter</h1>
-      <p>Platform for creating books on GitHub without any technical skills.</p>
+  <header class="app-header">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">B</span>
+      <div>
+        <h1>Bookstudio</h1>
+        <p>Write beautifully. Publish simply.</p>
+      </div>
     </div>
 
     <div id="githubAuthPanel" class="github-auth-panel">
@@ -61,8 +64,8 @@
         </div>
 
         <div class="book-actions">
-          <button id="publishPreviewButton" class="secondary">
-            Publish Book Preview
+          <button id="publishPreviewButton">
+            Publish
           </button>
           <button id="closeBookButton" class="secondary">Close Book</button>
           <button id="addChapterButton">Add Chapter</button>
@@ -92,7 +95,7 @@
 
     <section id="editorView" class="app-view hidden">
       <div class="editor-topbar">
-        <button id="backToBookButton" class="secondary">Back to Chapters</button>
+        <button id="backToBookButton" class="secondary back-button">← Chapters</button>
 
         <input
           id="chapterTitleInput"
@@ -102,17 +105,31 @@
         />
       </div>
 
-      <div class="toolbar">
-        <button id="copyButton">Copy Markdown</button>
-        <button id="downloadButton">Download .md</button>
-
-        <label class="image-upload-button">
-          Add Image
-          <input id="imageInput" type="file" accept="image/*" />
+        <label class="markdown-toggle">
+          <input id="markdownPreviewToggle" type="checkbox" />
+          <span class="toggle-control" aria-hidden="true"></span>
+          <span>Markdown preview</span>
         </label>
+      </div>
 
-        <button id="loadExampleButton" class="secondary">Load Example</button>
-        <button id="clearButton" class="secondary">Clear</button>
+      <div class="toolbar studio-toolbar">
+        <div class="toolbar-primary">
+          <label class="image-upload-button">
+            ＋ Add image
+            <input id="imageInput" type="file" accept="image/*" />
+          </label>
+          <span class="toolbar-hint">Your work is saved automatically</span>
+        </div>
+
+        <details class="more-menu">
+          <summary aria-label="More editor actions">•••</summary>
+          <div class="more-menu-popover">
+            <button id="copyButton">Copy Markdown</button>
+            <button id="downloadButton">Download .md</button>
+            <button id="loadExampleButton" class="secondary">Load Example</button>
+            <button id="clearButton" class="secondary danger-action">Clear chapter</button>
+          </div>
+        </details>
       </div>
 
       <div class="image-options">
@@ -185,22 +202,28 @@
         <div id="referenceList" class="reference-list"></div>
       </section>
 
-      <div class="workspace">
-        <section class="panel">
-          <h2>Plain Text Input</h2>
+      <div class="workspace studio-workspace">
+        <section class="panel writing-panel" data-view-panel="write">
+          <div class="panel-heading">
+            <div>
+              <span class="eyebrow">Writing canvas</span>
+              <h2>Start with your ideas</h2>
+            </div>
+            <span id="wordCount" class="word-count">0 words</span>
+          </div>
           <textarea
             id="plainTextInput"
-            placeholder="Write or paste your book content here..."
+            placeholder="Start writing here… Short lines become headings automatically."
           ></textarea>
         </section>
 
-        <section class="panel">
-          <h2>Markdown Output</h2>
+        <section class="panel markdown-panel" data-view-panel="markdown">
+          <div class="panel-heading"><div><span class="eyebrow">Source</span><h2>Markdown</h2></div></div>
           <pre id="markdownOutput"></pre>
         </section>
 
-        <section class="panel">
-          <h2>Rendered Preview</h2>
+        <section class="panel preview-panel" data-view-panel="preview">
+          <div class="panel-heading"><div><span class="eyebrow">Reader view</span><h2>Live preview</h2></div></div>
           <div id="previewOutput" class="preview"></div>
         </section>
       </div>
