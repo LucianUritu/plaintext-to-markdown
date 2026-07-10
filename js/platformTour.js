@@ -132,9 +132,11 @@ export class PlatformTour {
     this.steps = options.steps || createPlatformTourSteps();
     this.document = options.document || document;
     this.window = options.window || window;
+    this.onBeforeStep = options.onBeforeStep || function () {};
     this.onStepChange = options.onStepChange || function () {};
     this.activeIndex = 0;
     this.previouslyFocusedElement = null;
+    this.renderId = 0;
 
     this.handleKeydown = this.handleKeydown.bind(this);
     this.handleResize = this.handleResize.bind(this);
@@ -187,7 +189,7 @@ export class PlatformTour {
     this.closeButton.addEventListener("click", () => this.stop());
   }
 
-  start(stepId) {
+  async start(stepId) {
     this.mount();
     this.previouslyFocusedElement = this.document.activeElement;
     this.activeIndex = Math.max(0, this.findStepIndex(stepId));
@@ -195,7 +197,7 @@ export class PlatformTour {
     this.document.body.classList.add("platform-tour-active");
     this.document.addEventListener("keydown", this.handleKeydown);
     this.window.addEventListener("resize", this.handleResize);
-    this.render();
+    await this.render();
   }
 
   stop() {
@@ -216,23 +218,23 @@ export class PlatformTour {
     }
   }
 
-  next() {
+  async next() {
     if (this.activeIndex >= this.steps.length - 1) {
       this.stop();
       return;
     }
 
     this.activeIndex += 1;
-    this.render();
+    await this.render();
   }
 
-  previous() {
+  async previous() {
     if (this.activeIndex <= 0) {
       return;
     }
 
     this.activeIndex -= 1;
-    this.render();
+    await this.render();
   }
 
   findStepIndex(stepId) {
@@ -245,8 +247,17 @@ export class PlatformTour {
     });
   }
 
-  render() {
+  async render() {
+    const currentRenderId = this.renderId + 1;
+    this.renderId = currentRenderId;
+
     const step = this.steps[this.activeIndex];
+    await this.onBeforeStep(step);
+
+    if (currentRenderId !== this.renderId) {
+      return;
+    }
+
     const target = this.findVisibleTarget(step);
 
     this.progressElement.textContent =
@@ -257,7 +268,7 @@ export class PlatformTour {
     this.nextButton.textContent =
       this.activeIndex === this.steps.length - 1 ? "Finish" : "Next";
 
-    this.onStepChange(step);
+    this.onStepChange(step, target);
     this.position(target);
     this.nextButton.focus();
   }
@@ -295,39 +306,55 @@ export class PlatformTour {
 
   position(target) {
     target.scrollIntoView({
-      behavior: "smooth",
+      behavior: "auto",
       block: "center",
       inline: "center"
     });
 
     this.window.requestAnimationFrame(() => {
+      this.window.requestAnimationFrame(() => {
+        this.placeAroundTarget(target);
+      });
+    });
+  }
+
+  placeAroundTarget(target) {
       const targetRect = target.getBoundingClientRect();
       const viewportWidth = this.window.innerWidth;
       const viewportHeight = this.window.innerHeight;
       const margin = DEFAULT_SCROLL_MARGIN;
+      const highlightPadding = 8;
+      const visibleTarget = {
+        left: Math.max(margin, targetRect.left - highlightPadding),
+        top: Math.max(margin, targetRect.top - highlightPadding),
+        right: Math.min(viewportWidth - margin, targetRect.right + highlightPadding),
+        bottom: Math.min(viewportHeight - margin, targetRect.bottom + highlightPadding)
+      };
+      const highlightWidth = Math.max(48, visibleTarget.right - visibleTarget.left);
+      const highlightHeight = Math.max(40, visibleTarget.bottom - visibleTarget.top);
 
-      this.highlight.style.left = Math.max(margin, targetRect.left - 8) + "px";
-      this.highlight.style.top = Math.max(margin, targetRect.top - 8) + "px";
-      this.highlight.style.width =
-        Math.min(viewportWidth - margin * 2, targetRect.width + 16) + "px";
-      this.highlight.style.height =
-        Math.min(viewportHeight - margin * 2, targetRect.height + 16) + "px";
+      this.highlight.style.left = visibleTarget.left + "px";
+      this.highlight.style.top = visibleTarget.top + "px";
+      this.highlight.style.width = highlightWidth + "px";
+      this.highlight.style.height = highlightHeight + "px";
 
       const cardRect = this.card.getBoundingClientRect();
-      const spaceBelow = viewportHeight - targetRect.bottom;
-      const placeAbove = spaceBelow < cardRect.height + 26 && targetRect.top > cardRect.height + 26;
+      const targetCenterX = visibleTarget.left + highlightWidth / 2;
+      const spaceBelow = viewportHeight - visibleTarget.bottom;
+      const placeAbove =
+        spaceBelow < cardRect.height + 26 &&
+        visibleTarget.top > cardRect.height + 26;
       const top = placeAbove
-        ? targetRect.top - cardRect.height - 18
-        : targetRect.bottom + 18;
+        ? visibleTarget.top - cardRect.height - 18
+        : visibleTarget.bottom + 18;
       const left = Math.min(
-        Math.max(margin, targetRect.left),
+        Math.max(margin, targetCenterX - cardRect.width / 2),
         viewportWidth - cardRect.width - margin
       );
 
       this.card.style.left = left + "px";
       this.card.style.top =
         Math.min(Math.max(margin, top), viewportHeight - cardRect.height - margin) + "px";
-    });
   }
 
   handleKeydown(event) {

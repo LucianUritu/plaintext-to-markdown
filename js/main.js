@@ -1,6 +1,7 @@
 import {
   addBibliography,
   addChapter,
+  addReference,
   createNewBook,
   findChapterById,
   loadBook,
@@ -54,7 +55,9 @@ document.addEventListener("DOMContentLoaded", function () {
   const versionPickerModal = new VersionPickerModal(elements);
   const publishProgress = new PublishProgress(elements);
   const publishMessagePanel = new PublishMessagePanel(elements);
-  const platformTour = new PlatformTour();
+  const platformTour = new PlatformTour({
+    onBeforeStep: preparePlatformTourStep
+  });
   const versionHistoryPanel = new VersionHistoryPanel({
     elements,
     getCurrentBook: function () {
@@ -109,6 +112,98 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function setCurrentBook(book) {
     currentBook = book;
+  }
+
+  function preparePlatformTourStep(step) {
+    if (!step) {
+      return;
+    }
+
+    if ([
+      "help",
+      "github-auth",
+      "home-new-book",
+      "github-books"
+    ].includes(step.id)) {
+      navigation.navigate({ view: "home" });
+      return;
+    }
+
+    if ([
+      "book-title",
+      "book-actions",
+      "chapter-list",
+      "version-history",
+      "publish",
+      "publishing-feedback"
+    ].includes(step.id)) {
+      ensureTourBook();
+      navigation.navigate({ view: "book" });
+      return;
+    }
+
+    if (step.id === "bibliography") {
+      ensureTourBook();
+      ensureTourBibliography();
+      navigation.navigate({ view: "editor", type: "bibliography" });
+      return;
+    }
+
+    if (step.id === "citations") {
+      ensureTourBook();
+      ensureTourBibliography();
+      navigation.navigate({
+        view: "editor",
+        type: "chapter",
+        chapterId: currentBook.chapters[0].id
+      });
+      return;
+    }
+
+    if ([
+      "editor-topbar",
+      "markdown-toggle",
+      "formatting",
+      "writing",
+      "images",
+      "markdown-preview"
+    ].includes(step.id)) {
+      ensureTourBook();
+      navigation.navigate({
+        view: "editor",
+        type: "chapter",
+        chapterId: currentBook.chapters[0].id
+      });
+    }
+  }
+
+  function ensureTourBook() {
+    if (currentBook) {
+      return;
+    }
+
+    currentBook = createNewBook();
+    chapterDeleteMode = false;
+    setEditorInactive();
+    clearImagePreviewUrls();
+    hidePublishResult();
+  }
+
+  function ensureTourBibliography() {
+    if (!currentBook.bibliography) {
+      addBibliography(currentBook);
+    }
+
+    if (currentBook.bibliography.references.length > 0) {
+      return;
+    }
+
+    addReference(currentBook, {
+      authors: "Jane Smith",
+      title: "Example Open Education Source",
+      year: "2026",
+      url: "https://example.com/source"
+    });
   }
 
   function setEditorInactive() {
