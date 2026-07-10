@@ -11,6 +11,7 @@ export function getEditorElements() {
     githubBooksPanel: document.getElementById("githubBooksPanel"),
     githubBooksList: document.getElementById("githubBooksList"),
     refreshGithubBooksButton: document.getElementById("refreshGithubBooksButton"),
+    platformHelpButton: document.getElementById("platformHelpButton"),
 
     closeBookButton: document.getElementById("closeBookButton"),
     newBookButton: document.getElementById("newBookButton"),

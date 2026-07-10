@@ -36,6 +36,7 @@ import { GitHubBooksController } from "./githubBooksController.js";
 import { setupImageHandler } from "./imageHandler.js";
 import { plainTextToMarkdown } from "./markdownConverter.js";
 import { markdownToHtml } from "./markdownRenderer.js";
+import { PlatformTour } from "./platformTour.js";
 import { PublishProgress } from "./publishProgress.js";
 import { PublishMessagePanel } from "./publishMessagePanel.js";
 import { PublishWorkflow } from "./publishWorkflow.js";
@@ -53,6 +54,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const versionPickerModal = new VersionPickerModal(elements);
   const publishProgress = new PublishProgress(elements);
   const publishMessagePanel = new PublishMessagePanel(elements);
+  const platformTour = new PlatformTour();
   const versionHistoryPanel = new VersionHistoryPanel({
     elements,
     getCurrentBook: function () {
@@ -793,6 +795,10 @@ document.addEventListener("DOMContentLoaded", function () {
   });
   elements.refreshGithubBooksButton.addEventListener("click", function () {
     githubBooksController.loadBooks();
+  });
+
+  elements.platformHelpButton.addEventListener("click", function () {
+    platformTour.start();
   });
 
   elements.copyPublishedUrlButton.addEventListener("click", async function () {

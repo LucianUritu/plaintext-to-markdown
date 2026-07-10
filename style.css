@@ -1494,6 +1494,120 @@ button.danger:hover { background: #a72e26; }
 }
 .status:empty { display: none; }
 
+/* Platform tour */
+
+.platform-help-button {
+  position: fixed;
+  right: 24px;
+  bottom: 78px;
+  z-index: 14;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid #cbd6ce;
+  border-radius: 50%;
+  background: var(--ink);
+  color: #ffffff;
+  box-shadow: 0 12px 30px rgba(23, 32, 27, .18);
+  font-size: 22px;
+  line-height: 1;
+}
+
+.platform-help-button:hover,
+.platform-help-button:focus-visible {
+  background: var(--accent-dark);
+  transform: translateY(-1px);
+  outline: 3px solid rgba(23,107,77,.18);
+  outline-offset: 3px;
+}
+
+.platform-tour {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: transparent;
+}
+
+.platform-tour-highlight {
+  position: fixed;
+  border: 3px solid #f8d676;
+  border-radius: 14px;
+  box-shadow:
+    0 0 0 9999px rgba(13, 20, 17, .58),
+    0 16px 42px rgba(0, 0, 0, .24);
+  pointer-events: none;
+  transition: left .18s ease, top .18s ease, width .18s ease, height .18s ease;
+}
+
+.platform-tour-card {
+  position: fixed;
+  z-index: 1;
+  width: min(390px, calc(100vw - 32px));
+  padding: 18px;
+  border: 1px solid #d9ded8;
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .26);
+}
+
+.platform-tour-card__header,
+.platform-tour-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.platform-tour-progress {
+  color: var(--accent-dark);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.platform-tour-close {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f1f1ec;
+  color: var(--ink);
+  font-size: 22px;
+}
+
+.platform-tour-card h2 {
+  margin: 12px 0 8px;
+  color: var(--ink);
+  font-family: Georgia, serif;
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.platform-tour-card p {
+  margin: 0 0 18px;
+  color: #4f5a53;
+  line-height: 1.55;
+}
+
+.platform-tour-actions {
+  justify-content: flex-end;
+}
+
+.platform-tour-actions button {
+  min-width: 84px;
+}
+
+.platform-tour-actions button:disabled {
+  cursor: default;
+  opacity: .45;
+}
+
 @media (max-width: 1050px) {
   .studio-workspace { grid-template-columns: 1fr; }
   .studio-workspace.markdown-enabled { grid-template-columns: 1fr; }
@@ -1510,5 +1624,6 @@ button.danger:hover { background: #a72e26; }
   .panel { min-height: 520px; }
   .writing-panel textarea, .preview, pre { min-height: 455px; padding: 24px 20px; }
   .status { right: 16px; bottom: 16px; left: 16px; max-width: none; }
+  .platform-help-button { right: 16px; bottom: 76px; }
   .github-book-actions { justify-content: flex-start; }
 }
