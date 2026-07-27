@@ -404,6 +404,27 @@ pre {
   flex-wrap: wrap;
 }
 
+.book-actions button {
+  background: #147a59;
+  color: #ffffff;
+}
+
+.book-actions button:hover {
+  background: #0f6248;
+}
+
+.book-actions .close-book-action {
+  margin-left: auto;
+  border: 1px solid #f2b8b5;
+  background: #fff1f0;
+  color: #9f312a;
+}
+
+.book-actions .close-book-action:hover {
+  background: #ffe4e2;
+  color: #84251f;
+}
+
 .chapter-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
