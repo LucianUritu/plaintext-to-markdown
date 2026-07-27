@@ -73,6 +73,58 @@ test("platform tour prepares a step before choosing the target", async () => {
   assert.equal(target.scrolled, true);
 });
 
+test("platform tour runs finish callback after the last step", async () => {
+  const { PlatformTour } = await import("../js/platformTour.js");
+  const calls = [];
+  const target = createElement({
+    selector: "#target",
+    visibleAfterPrepare: true
+  });
+  const tour = new PlatformTour({
+    document: createFakeDocument(target),
+    window: createFakeWindow(),
+    steps: [{
+      id: "final",
+      target: "#target",
+      title: "Final step",
+      body: "Complete the tour."
+    }],
+    onFinish: () => calls.push("finish")
+  });
+
+  await tour.start();
+  await tour.next();
+
+  assert.deepEqual(calls, ["finish"]);
+});
+
+test("platform tour does not run finish callback when closed early", async () => {
+  const { PlatformTour } = await import("../js/platformTour.js");
+  const target = createElement({
+    selector: "#target",
+    visibleAfterPrepare: true
+  });
+  let finished = false;
+  const tour = new PlatformTour({
+    document: createFakeDocument(target),
+    window: createFakeWindow(),
+    steps: [{
+      id: "first",
+      target: "#target",
+      title: "First step",
+      body: "Close the tour."
+    }],
+    onFinish: () => {
+      finished = true;
+    }
+  });
+
+  await tour.start();
+  tour.stop();
+
+  assert.equal(finished, false);
+});
+
 function createFakeDocument(target) {
   const body = createElement({ selector: "body", visibleAfterPrepare: true });
   body.appendChild = () => {};

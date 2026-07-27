@@ -134,6 +134,7 @@ export class PlatformTour {
     this.window = options.window || window;
     this.onBeforeStep = options.onBeforeStep || function () {};
     this.onStepChange = options.onStepChange || function () {};
+    this.onFinish = options.onFinish || function () {};
     this.activeIndex = 0;
     this.previouslyFocusedElement = null;
     this.renderId = 0;
@@ -221,6 +222,7 @@ export class PlatformTour {
   async next() {
     if (this.activeIndex >= this.steps.length - 1) {
       this.stop();
+      await this.onFinish();
       return;
     }
 

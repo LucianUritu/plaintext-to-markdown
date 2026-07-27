@@ -56,7 +56,8 @@ document.addEventListener("DOMContentLoaded", function () {
   const publishProgress = new PublishProgress(elements);
   const publishMessagePanel = new PublishMessagePanel(elements);
   const platformTour = new PlatformTour({
-    onBeforeStep: preparePlatformTourStep
+    onBeforeStep: preparePlatformTourStep,
+    onFinish: finishPlatformTour
   });
   const versionHistoryPanel = new VersionHistoryPanel({
     elements,
@@ -204,6 +205,13 @@ document.addEventListener("DOMContentLoaded", function () {
       year: "2026",
       url: "https://example.com/source"
     });
+  }
+
+  function finishPlatformTour() {
+    chapterDeleteMode = false;
+    setEditorInactive();
+    hidePublishResult();
+    navigation.navigate({ view: "home" });
   }
 
   function setEditorInactive() {
