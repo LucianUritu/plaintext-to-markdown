@@ -212,6 +212,17 @@ ${referenceList}
 `;
 }
 
+export function generateChapterBibliographyMarkdown(chapter, bibliography) {
+  const references = getChapterBibliographyReferences(chapter, bibliography);
+
+  if (references.length === 0) {
+    return "";
+  }
+
+  return "\n\n## References\n\n" +
+    references.map(generateReferenceSummaryMarkdown).join("\n\n");
+}
+
 function generateReferenceMarkdown(reference) {
   const title = reference.title || "Untitled source";
   const authors = reference.authors || "Unknown author";
@@ -222,6 +233,15 @@ function generateReferenceMarkdown(reference) {
 ### ${title}
 
 ${authors}${year}.${sourceLink}`;
+}
+
+function generateReferenceSummaryMarkdown(reference) {
+  const title = reference.title || "Untitled source";
+  const authors = reference.authors || "Unknown author";
+  const year = reference.year ? " (" + reference.year + ")" : "";
+  const sourceLink = reference.url ? " [Open source](" + reference.url + ")" : "";
+
+  return "### " + title + "\n\n" + authors + year + "." + sourceLink;
 }
 
 function generateBibTex(references) {
@@ -289,12 +309,33 @@ function generateChapterMarkdown(chapter, index, bibliography) {
     plainTextToMarkdown(chapter.content || ""),
     bibliography
   );
+  const chapterBibliography = generateChapterBibliographyMarkdown(chapter, bibliography);
 
-  if (body.length === 0) {
+  if (body.length === 0 && chapterBibliography.length === 0) {
     return "";
   }
 
-  return body + "\n";
+  if (body.length === 0) {
+    return chapterBibliography.trimStart() + "\n";
+  }
+
+  return body + chapterBibliography + "\n";
+}
+
+function getChapterBibliographyReferences(chapter, bibliography) {
+  if (!chapter?.showBibliography || !bibliography?.references) {
+    return [];
+  }
+
+  const referenceKeys = new Set(
+    Array.isArray(chapter.referenceKeys) ? chapter.referenceKeys : []
+  );
+
+  if (referenceKeys.size === 0) {
+    return [];
+  }
+
+  return bibliography.references.filter((reference) => referenceKeys.has(reference.key));
 }
 
 function convertBodyTextToMarkdown(text) {

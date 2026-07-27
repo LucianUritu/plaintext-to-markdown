@@ -90,6 +90,20 @@ test("normalizer activates first chapter when introduction is hidden", async () 
   assert.equal(book.activeItemType, "chapter");
   assert.equal(book.activeChapterId, "c");
 });
+test("normalizer prepares chapter bibliography settings", async () => {
+  const { normalizer } = await createContext();
+  const book = normalizer.normalize({
+    chapters: [{
+      id: "c",
+      title: "C",
+      content: "",
+      showBibliography: true,
+      referenceKeys: ["a", "a", "", "b"]
+    }]
+  });
+  assert.equal(book.chapters[0].showBibliography, true);
+  assert.deepEqual(book.chapters[0].referenceKeys, ["a", "b"]);
+});
 test("addChapter assigns sequential display title", async () => {
   const { service } = await createContext();
   const book = service.create();
@@ -181,6 +195,28 @@ test("references can be removed", async () => {
   const reference = service.addReference(book, { title: "Source" });
   assert.equal(service.removeReference(book, reference.id), true);
   assert.equal(service.removeReference(book, reference.id), false);
+});
+test("chapter bibliographies track selected reference keys", async () => {
+  const { service } = await createContext();
+  const book = service.create();
+  const reference = service.addReference(book, { title: "Source" });
+  const chapter = book.chapters[0];
+  service.setChapterBibliography(book, chapter.id, true);
+  service.addChapterReference(book, chapter.id, reference.key);
+  service.addChapterReference(book, chapter.id, reference.key);
+  assert.equal(chapter.showBibliography, true);
+  assert.deepEqual(chapter.referenceKeys, [reference.key]);
+  service.removeChapterReference(book, chapter.id, reference.key);
+  assert.deepEqual(chapter.referenceKeys, []);
+});
+test("removing a reference removes it from chapter bibliographies", async () => {
+  const { service } = await createContext();
+  const book = service.create();
+  const reference = service.addReference(book, { title: "Source" });
+  const chapter = book.chapters[0];
+  service.addChapterReference(book, chapter.id, reference.key);
+  service.removeReference(book, reference.id);
+  assert.deepEqual(chapter.referenceKeys, []);
 });
 test("title updates use safe fallbacks", async () => {
   const { service } = await createContext();

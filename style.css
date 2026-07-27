@@ -689,6 +689,7 @@ pre {
 }
 
 .citation-tools.hidden,
+.chapter-bibliography-panel.hidden,
 .bibliography-manager.hidden {
   display: none;
 }
@@ -741,6 +742,69 @@ pre {
   color: #6b7280;
   cursor: not-allowed;
   opacity: 0.8;
+}
+
+.chapter-bibliography-panel {
+  display: grid;
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 16px;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+  background: #f0fdf4;
+}
+
+.chapter-bibliography-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.chapter-bibliography-heading h2,
+.chapter-bibliography-heading p {
+  margin: 0;
+}
+
+.chapter-bibliography-heading h2 {
+  font-size: 16px;
+}
+
+.chapter-bibliography-heading p {
+  margin-top: 3px;
+  color: #4b5563;
+  font-size: 13px;
+}
+
+.chapter-bibliography-toggle,
+.chapter-reference-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #172033;
+  font-weight: 700;
+}
+
+.chapter-bibliography-toggle {
+  white-space: nowrap;
+}
+
+.chapter-reference-list {
+  display: grid;
+  gap: 8px;
+}
+
+.chapter-reference-option {
+  padding: 10px 12px;
+  border: 1px solid #dcfce7;
+  border-radius: 8px;
+  background: #ffffff;
+  font-size: 14px;
+}
+
+.chapter-reference-option span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .bibliography-manager {

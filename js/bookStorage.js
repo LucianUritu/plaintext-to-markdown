@@ -20,6 +20,9 @@ export const updateBibliographyTitle = (book, title) => service.updateBibliograp
 export const updateBibliographyContent = (book, content) => service.updateBibliographyContent(book, content);
 export const updateChapterContent = (book, id, content) => service.updateChapterContent(book, id, content);
 export const updateChapterTitle = (book, id, title) => service.updateChapterTitle(book, id, title);
+export const setChapterBibliography = (book, id, enabled) => service.setChapterBibliography(book, id, enabled);
+export const addChapterReference = (book, id, referenceKey) => service.addChapterReference(book, id, referenceKey);
+export const removeChapterReference = (book, id, referenceKey) => service.removeChapterReference(book, id, referenceKey);
 export const upsertBookImage = (book, image) => service.upsertImage(book, image);
 export const setActiveChapter = (book, id) => service.setActiveChapter(book, id);
 export const setActiveIntroduction = (book) => service.setActiveIntroduction(book);

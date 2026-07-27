@@ -94,7 +94,10 @@ export class BookService {
     if (!book.bibliography) return false;
     const index = book.bibliography.references.findIndex((item) => item.id === referenceId);
     if (index < 0) return false;
-    book.bibliography.references.splice(index, 1);
+    const [removedReference] = book.bibliography.references.splice(index, 1);
+    book.chapters.forEach((chapter) => {
+      chapter.referenceKeys = chapter.referenceKeys.filter((key) => key !== removedReference.key);
+    });
     this.save(book);
     return true;
   }
@@ -140,6 +143,32 @@ export class BookService {
   updateChapterTitle(book, chapterId, title) {
     const chapter = this.findChapter(book, chapterId);
     if (chapter) { chapter.title = title.trim() || "Untitled Chapter"; this.save(book); }
+  }
+
+  setChapterBibliography(book, chapterId, enabled) {
+    const chapter = this.findChapter(book, chapterId);
+    if (!chapter) return null;
+    chapter.showBibliography = Boolean(enabled);
+    this.save(book);
+    return chapter;
+  }
+
+  addChapterReference(book, chapterId, referenceKey) {
+    const chapter = this.findChapter(book, chapterId);
+    const key = String(referenceKey || "");
+    if (!chapter || !key) return null;
+    if (!chapter.referenceKeys.includes(key)) chapter.referenceKeys.push(key);
+    this.save(book);
+    return chapter;
+  }
+
+  removeChapterReference(book, chapterId, referenceKey) {
+    const chapter = this.findChapter(book, chapterId);
+    const key = String(referenceKey || "");
+    if (!chapter || !key) return null;
+    chapter.referenceKeys = chapter.referenceKeys.filter((item) => item !== key);
+    this.save(book);
+    return chapter;
   }
 
   upsertImage(book, image) {

@@ -1,15 +1,19 @@
 import {
+  addChapterReference,
   addReference,
   findReferenceById,
+  removeChapterReference,
   removeReference,
+  setChapterBibliography,
   updateReference
 } from "./bookStorage.js";
 import { escapeHtml } from "./utils.js";
 
 export class BibliographyController {
-  constructor({ elements, getBook, setStatus, onContentChanged }) {
+  constructor({ elements, getBook, getActiveChapter, setStatus, onContentChanged }) {
     this.elements = elements;
     this.getBook = getBook;
+    this.getActiveChapter = getActiveChapter || function () { return null; };
     this.setStatus = setStatus;
     this.onContentChanged = onContentChanged;
     this.bindEvents();
@@ -19,8 +23,12 @@ export class BibliographyController {
     const isChapter = editorType === "chapter";
     const isBibliography = editorType === "bibliography";
     this.elements.chapterCitationTools.classList.toggle("hidden", !isChapter);
+    this.elements.chapterBibliographyPanel.classList.toggle("hidden", !isChapter);
     this.elements.bibliographyManager.classList.toggle("hidden", !isBibliography);
-    if (isChapter) this.refreshCitationPicker();
+    if (isChapter) {
+      this.refreshCitationPicker();
+      this.renderChapterReferences();
+    }
     if (!isBibliography) this.resetForm();
   }
 
@@ -64,6 +72,49 @@ export class BibliographyController {
     references.forEach((reference) => list.appendChild(this.createReferenceItem(reference)));
   }
 
+  renderChapterReferences() {
+    const chapter = this.getActiveChapter();
+    const references = this.getBook()?.bibliography?.references || [];
+    const list = this.elements.chapterReferenceList;
+    list.innerHTML = "";
+
+    this.elements.chapterBibliographyToggle.checked = Boolean(chapter?.showBibliography);
+
+    if (!chapter) {
+      list.innerHTML = '<p class="reference-empty">Open a chapter to choose its references.</p>';
+      return;
+    }
+
+    if (references.length === 0) {
+      list.innerHTML = '<p class="reference-empty">Add references to the book bibliography first.</p>';
+      return;
+    }
+
+    references.forEach((reference) => {
+      const label = document.createElement("label");
+      label.className = "chapter-reference-option";
+
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.checked = chapter.referenceKeys.includes(reference.key);
+      input.addEventListener("change", () => {
+        if (input.checked) {
+          addChapterReference(this.getBook(), chapter.id, reference.key);
+        } else {
+          removeChapterReference(this.getBook(), chapter.id, reference.key);
+        }
+        this.onContentChanged();
+        this.renderChapterReferences();
+      });
+
+      const text = document.createElement("span");
+      text.textContent = this.formatLabel(reference);
+
+      label.append(input, text);
+      list.appendChild(label);
+    });
+  }
+
   createReferenceItem(reference) {
     const item = document.createElement("article");
     item.className = "reference-item";
@@ -96,6 +147,7 @@ export class BibliographyController {
     removeReference(this.getBook(), reference.id);
     this.resetForm();
     this.renderReferenceList();
+    this.renderChapterReferences();
     this.onContentChanged();
     this.setStatus("Reference removed.");
   }
@@ -137,6 +189,7 @@ export class BibliographyController {
     }
     this.resetForm();
     this.renderReferenceList();
+    this.renderChapterReferences();
     this.onContentChanged();
   }
 
@@ -162,7 +215,13 @@ export class BibliographyController {
       (after && !/\s/.test(after) ? " " : "");
     textarea.setRangeText(citation, start, end, "end");
     textarea.focus();
+    const chapter = this.getActiveChapter();
+    if (chapter) {
+      setChapterBibliography(this.getBook(), chapter.id, true);
+      addChapterReference(this.getBook(), chapter.id, reference.key);
+    }
     this.onContentChanged();
+    this.renderChapterReferences();
     this.setStatus("Citation inserted.");
   }
 
@@ -195,5 +254,11 @@ export class BibliographyController {
     this.elements.referenceForm.addEventListener("submit", (event) => this.handleSubmit(event));
     this.elements.cancelReferenceEditButton.addEventListener("click", () => this.resetForm());
     this.elements.insertCitationButton.addEventListener("click", () => this.insertCitation());
+    this.elements.chapterBibliographyToggle.addEventListener("change", () => {
+      const chapter = this.getActiveChapter();
+      if (!chapter) return;
+      setChapterBibliography(this.getBook(), chapter.id, this.elements.chapterBibliographyToggle.checked);
+      this.onContentChanged();
+    });
   }
 }

@@ -39,6 +39,10 @@ export class BookNormalizer {
       chapter.id ||= this.idGenerator();
       chapter.title ||= "Chapter " + (index + 1);
       if (typeof chapter.content !== "string") chapter.content = "";
+      chapter.showBibliography = Boolean(chapter.showBibliography);
+      chapter.referenceKeys = Array.isArray(chapter.referenceKeys)
+        ? Array.from(new Set(chapter.referenceKeys.map(String).filter(Boolean)))
+        : [];
     });
 
     if (book.bibliography) this.normalizeBibliography(book.bibliography);

@@ -43,7 +43,10 @@ import { PublishMessagePanel } from "./publishMessagePanel.js";
 import { PublishWorkflow } from "./publishWorkflow.js";
 import { setupEditorShortcuts } from "./shortcuts.js";
 import { setupFormattingToolbar } from "./formattingToolbar.js";
-import { generateBibliographyMarkdown } from "./teachbooksGenerator.js";
+import {
+  generateBibliographyMarkdown,
+  generateChapterBibliographyMarkdown
+} from "./teachbooksGenerator.js";
 import { escapeHtml } from "./utils.js";
 import { VersionHistoryPanel } from "./versionHistoryPanel.js";
 import { VersionPickerModal } from "./versionPickerModal.js";
@@ -100,6 +103,9 @@ document.addEventListener("DOMContentLoaded", function () {
     elements,
     getBook: function () {
       return currentBook;
+    },
+    getActiveChapter: function () {
+      return activeChapter;
     },
     setStatus: function (message) {
       setStatus(message);
@@ -228,9 +234,13 @@ document.addEventListener("DOMContentLoaded", function () {
   function updateOutputs() {
     refreshImagePreviewUrls();
 
-    const markdown = activeEditorType === "bibliography" && currentBook?.bibliography
+    let markdown = activeEditorType === "bibliography" && currentBook?.bibliography
       ? generateBibliographyMarkdown(currentBook.bibliography)
       : plainTextToMarkdown(elements.plainTextInput.value);
+
+    if (activeEditorType === "chapter" && activeChapter && currentBook?.bibliography) {
+      markdown += generateChapterBibliographyMarkdown(activeChapter, currentBook.bibliography);
+    }
 
     elements.markdownOutput.textContent = markdown;
     elements.previewOutput.innerHTML = markdownToHtml(markdown, imagePreviewUrls);

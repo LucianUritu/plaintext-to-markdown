@@ -2,25 +2,48 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const controllerModule = import("../js/bibliographyController.js");
 
-function field(value = "") { return { value, addEventListener() {}, classList: { add() {}, remove() {}, toggle() {} }, focus() {} }; }
+global.document = {
+  createElement(tagName) {
+    return {
+      tagName,
+      children: [],
+      checked: false,
+      className: "",
+      textContent: "",
+      type: "",
+      addEventListener() {},
+      append(...children) { this.children.push(...children); },
+      appendChild(child) { this.children.push(child); }
+    };
+  }
+};
+global.localStorage = {
+  getItem() { return null; },
+  setItem() {}
+};
+
+function field(value = "") { return { value, innerHTML: "", checked: false, children: [], addEventListener() {}, appendChild(child) { this.children.push(child); }, classList: { add() {}, remove() {}, toggle() {} }, focus() {} }; }
 function context() {
   const statuses = [];
   let changed = 0;
   const elements = {
     chapterCitationTools: field(), bibliographyManager: field(), citationReferenceSelect: field(),
-    insertCitationButton: field(), referenceForm: { ...field(), reset() {} }, referenceIdInput: field(),
+    insertCitationButton: field(), chapterBibliographyPanel: field(), chapterBibliographyToggle: field(),
+    chapterReferenceList: field(), referenceForm: { ...field(), reset() {} }, referenceIdInput: field(),
     referenceAuthorsInput: field(), referenceTitleInput: field(), referenceYearInput: field(),
     referenceUrlInput: field(), saveReferenceButton: field(), cancelReferenceEditButton: field(),
     referenceList: field(), referenceCount: field(), plainTextInput: field()
   };
   const book = {
+    chapters: [{ id: "chapter-1", title: "Chapter", content: "", showBibliography: false, referenceKeys: [] }],
     bibliography: {
       references: [{ key: "smith2025source", title: "Reliable Source" }]
     }
   };
   return controllerModule.then(({ BibliographyController }) => ({
     elements, statuses,
-    controller: new BibliographyController({ elements, getBook: () => book, setStatus: (message) => statuses.push(message), onContentChanged: () => changed++ }),
+    book,
+    controller: new BibliographyController({ elements, getBook: () => book, getActiveChapter: () => book.chapters[0], setStatus: (message) => statuses.push(message), onContentChanged: () => changed++ }),
     changed: () => changed
   }));
 }
@@ -48,7 +71,7 @@ test("reference forms are read into a value object", async () => {
   assert.deepEqual(controller.readForm(), { authors: "A", title: "T", year: "2024", url: "U" });
 });
 test("inserting citations replaces selected text and reports success", async () => {
-  const { controller, elements, statuses, changed } = await context();
+  const { book, controller, elements, statuses, changed } = await context();
   elements.citationReferenceSelect.value = "smith2025source";
   elements.plainTextInput = {
     value: "Read source now", selectionStart: 5, selectionEnd: 11, focus() {},
@@ -56,6 +79,8 @@ test("inserting citations replaces selected text and reports success", async () 
   };
   controller.insertCitation();
   assert.equal(elements.plainTextInput.value, "Read {ref}`Reliable Source <reference-smith2025source>` now");
+  assert.equal(book.chapters[0].showBibliography, true);
+  assert.deepEqual(book.chapters[0].referenceKeys, ["smith2025source"]);
   assert.equal(changed(), 1);
   assert.equal(statuses.at(-1), "Citation inserted.");
 });

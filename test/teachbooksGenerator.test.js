@@ -71,6 +71,27 @@ test("bibliographies add config, TOC, markdown, and BibTeX", async () => {
   assert.match(byPath(files, "book/bibliography.md").content, /### Source/);
   assert.match(byPath(files, "book/references.bib").content, /@misc\{smith2024source/);
 });
+test("chapters can publish selected local bibliography entries", async () => {
+  const files = await filesFor(book({
+    chapters: [{
+      title: "First Chapter",
+      content: "First Chapter\n\nBody.",
+      showBibliography: true,
+      referenceKeys: ["smith2024source"]
+    }],
+    bibliography: {
+      references: [
+        { key: "smith2024source", authors: "Jane Smith", title: "Source", year: "2024", url: "https://example.com" },
+        { key: "doe2025other", authors: "John Doe", title: "Other", year: "2025" }
+      ]
+    }
+  }));
+  const chapter = byPath(files, "book/chapters/01-first-chapter.md").content;
+  assert.match(chapter, /## References/);
+  assert.match(chapter, /### Source/);
+  assert.doesNotMatch(chapter, /### Other/);
+  assert.doesNotMatch(chapter, /\(reference-smith2024source\)=/);
+});
 test("BibTeX converts semicolon author separators", async () => {
   const files = await filesFor(book({ bibliography: { references: [{ key: "k", authors: "A One; B Two", title: "T" }] } }));
   assert.match(byPath(files, "book/references.bib").content, /A One and B Two/);
