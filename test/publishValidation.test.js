@@ -23,6 +23,37 @@ test("missing locally referenced images are rejected", async () => assert.match(
 test("saved locally referenced images pass", async () => assert.equal((await errorsFor(validBook({ chapters: [{ title: "One", content: "![A](images/a.png)" }], images: [{ path: "images/a.png", dataUrl: "data:image/png;base64,YQ==" }] }))).length, 0));
 test("external images do not require local data", async () => assert.equal((await errorsFor(validBook({ chapters: [{ title: "One", content: "![A](https://example.com/a.png)" }] }))).length, 0));
 test("example image is allowed", async () => assert.equal((await errorsFor(validBook({ chapters: [{ title: "One", content: "![A](images/example.png)" }] }))).length, 0));
+test("readiness reports missing citation references as blockers", async () => {
+  const report = (await validation).validatePublishReadiness(validBook({
+    chapters: [{ title: "One", content: "See {ref}`Missing <reference-missing2026source>`." }],
+    bibliography: { references: [] }
+  }));
+  assert.equal(report.ready, false);
+  assert.match(report.blockers.map((item) => item.message).join(" "), /missing reference/);
+});
+test("readiness reports empty image alt text as a warning", async () => {
+  const report = (await validation).validatePublishReadiness(validBook({
+    chapters: [{ title: "One", content: "![](images/a.png)" }],
+    images: [{ path: "images/a.png", dataUrl: "data:image/png;base64,YQ==" }]
+  }));
+  assert.equal(report.ready, true);
+  assert.match(report.warnings.map((item) => item.message).join(" "), /without alt text/);
+});
+test("readiness warns about hidden selected chapter references", async () => {
+  const report = (await validation).validatePublishReadiness(validBook({
+    chapters: [{
+      title: "One",
+      content: "Body",
+      showBibliography: false,
+      referenceKeys: ["smith2024source"]
+    }],
+    bibliography: {
+      references: [{ key: "smith2024source", title: "Source" }]
+    }
+  }));
+  assert.equal(report.ready, true);
+  assert.match(report.warnings.map((item) => item.message).join(" "), /chapter reference list is hidden/);
+});
 test("validation errors have actionable formatting", async () => {
   const message = (await validation).formatPublishValidationErrors(["Error one", "Error two"]);
   assert.match(message, /- Error one/);

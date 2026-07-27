@@ -18,6 +18,7 @@ export function getEditorElements() {
     addChapterButton: document.getElementById("addChapterButton"),
     addBibliographyButton: document.getElementById("addBibliographyButton"),
     removeChapterButton: document.getElementById("removeChapterButton"),
+    readinessCheckButton: document.getElementById("readinessCheckButton"),
     publishPreviewButton: document.getElementById("publishPreviewButton"),
     backToBookButton: document.getElementById("backToBookButton"),
 
@@ -56,6 +57,11 @@ export function getEditorElements() {
     imageAltInput: document.getElementById("imageAltInput"),
 
     publishResult: document.getElementById("publishResult"),
+    publishReadinessPanel: document.getElementById("publishReadinessPanel"),
+    publishReadinessTitle: document.getElementById("publishReadinessTitle"),
+    publishReadinessSummary: document.getElementById("publishReadinessSummary"),
+    publishReadinessList: document.getElementById("publishReadinessList"),
+    publishReadinessClose: document.getElementById("publishReadinessClose"),
     publishResultMessage: document.getElementById("publishResultMessage"),
     publishProgressPanel: document.getElementById("publishProgressPanel"),
     publishStepRepository: document.getElementById("publishStepRepository"),

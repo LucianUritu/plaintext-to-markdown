@@ -1,17 +1,36 @@
 const DEFAULT_BOOK_TITLE = "Enter Book Title";
 const EXAMPLE_IMAGE_PATH = "images/example.png";
 const LOCAL_IMAGE_PATH_PATTERN = /^[a-z0-9._/-]+$/i;
+const BLOCKING = "blocking";
+const WARNING = "warning";
+const READY = "ready";
 
 export function validateBookForPublish(book) {
-  const errors = [];
-
-  validateTitle(book, errors);
-  validateChapters(book, errors);
-  validateImages(book, errors);
+  const readiness = validatePublishReadiness(book);
+  const errors = readiness.blockers.map(function (item) {
+    return item.message;
+  });
 
   return {
     valid: errors.length === 0,
     errors
+  };
+}
+
+export function validatePublishReadiness(book) {
+  const items = [];
+
+  validateTitle(book, items);
+  validateChapters(book, items);
+  validateImages(book, items);
+  validateReferences(book, items);
+
+  return {
+    ready: items.every((item) => item.status !== BLOCKING),
+    blockers: items.filter((item) => item.status === BLOCKING),
+    warnings: items.filter((item) => item.status === WARNING),
+    passed: items.filter((item) => item.status === READY),
+    items
   };
 }
 
@@ -25,21 +44,26 @@ export function formatPublishValidationErrors(errors) {
   );
 }
 
-function validateTitle(book, errors) {
+function validateTitle(book, items) {
   const title = String((book && book.title) || "").trim();
 
   if (!title || title === DEFAULT_BOOK_TITLE) {
-    errors.push("Add a real book title.");
+    items.push(createItem(BLOCKING, "Title", "Add a real book title."));
+    return;
   }
+
+  items.push(createItem(READY, "Title", "Book title is ready."));
 }
 
-function validateChapters(book, errors) {
+function validateChapters(book, items) {
   const chapters = Array.isArray(book && book.chapters) ? book.chapters : [];
 
   if (chapters.length === 0) {
-    errors.push("Add at least one chapter.");
+    items.push(createItem(BLOCKING, "Chapters", "Add at least one chapter."));
     return;
   }
+
+  items.push(createItem(READY, "Chapters", chapters.length + " chapter" + (chapters.length === 1 ? "" : "s") + " available."));
 
   const seenTitles = new Map();
 
@@ -49,16 +73,16 @@ function validateChapters(book, errors) {
     const content = String((chapter && chapter.content) || "").trim();
 
     if (!title) {
-      errors.push("Chapter " + chapterNumber + " needs a real title.");
+      items.push(createItem(BLOCKING, "Chapters", "Chapter " + chapterNumber + " needs a real title."));
     }
 
     if (!content) {
-      errors.push("Chapter " + chapterNumber + " is empty.");
+      items.push(createItem(BLOCKING, "Chapters", "Chapter " + chapterNumber + " is empty."));
     }
 
     if (title) {
       addDuplicateTitleError({
-        errors,
+        items,
         seenTitles,
         title,
         chapterNumber
@@ -67,7 +91,7 @@ function validateChapters(book, errors) {
   });
 }
 
-function addDuplicateTitleError({ errors, seenTitles, title, chapterNumber }) {
+function addDuplicateTitleError({ items, seenTitles, title, chapterNumber }) {
   const normalizedTitle = normalizeTitle(title);
 
   if (!normalizedTitle) {
@@ -75,7 +99,9 @@ function addDuplicateTitleError({ errors, seenTitles, title, chapterNumber }) {
   }
 
   if (seenTitles.has(normalizedTitle)) {
-    errors.push(
+    items.push(createItem(
+      BLOCKING,
+      "Chapters",
       "Chapter " +
         chapterNumber +
         " has the same title as chapter " +
@@ -83,38 +109,42 @@ function addDuplicateTitleError({ errors, seenTitles, title, chapterNumber }) {
         ": " +
         title +
         "."
-    );
+    ));
     return;
   }
 
   seenTitles.set(normalizedTitle, chapterNumber);
 }
 
-function validateImages(book, errors) {
+function validateImages(book, items) {
   const images = Array.isArray(book && book.images) ? book.images : [];
   const imagePaths = new Set();
   const seenImagePaths = new Set();
+
+  if (images.length === 0) {
+    items.push(createItem(READY, "Images", "No saved images need validation."));
+  }
 
   images.forEach(function (image) {
     const path = String((image && image.path) || "").trim();
 
     if (!path) {
-      errors.push("One saved image has no file path.");
+      items.push(createItem(BLOCKING, "Images", "One saved image has no file path."));
       return;
     }
 
     if (!isSafeLocalImagePath(path)) {
-      errors.push("Image path is not safe: " + path + ".");
+      items.push(createItem(BLOCKING, "Images", "Image path is not safe: " + path + "."));
       return;
     }
 
     if (!isImageDataUrl(image.dataUrl)) {
-      errors.push("Image " + path + " is missing valid image data.");
+      items.push(createItem(BLOCKING, "Images", "Image " + path + " is missing valid image data."));
       return;
     }
 
     if (seenImagePaths.has(path)) {
-      errors.push("Image path is used more than once: " + path + ".");
+      items.push(createItem(BLOCKING, "Images", "Image path is used more than once: " + path + "."));
       return;
     }
 
@@ -123,24 +153,28 @@ function validateImages(book, errors) {
   });
 
   getBookTextSections(book).forEach(function (section) {
-    extractMarkdownImagePaths(section.content).forEach(function (path) {
+    extractMarkdownImages(section.content).forEach(function (image) {
+      if (!String(image.alt || "").trim()) {
+        items.push(createItem(WARNING, "Images", section.name + " has an image without alt text: " + image.path + "."));
+      }
+
       validateMarkdownImagePath({
-        errors,
+        items,
         imagePaths,
         sectionName: section.name,
-        path
+        path: image.path
       });
     });
   });
 }
 
-function validateMarkdownImagePath({ errors, imagePaths, sectionName, path }) {
+function validateMarkdownImagePath({ items, imagePaths, sectionName, path }) {
   if (isExternalImagePath(path)) {
     return;
   }
 
   if (!isSafeLocalImagePath(path)) {
-    errors.push(sectionName + " has an invalid image path: " + path + ".");
+    items.push(createItem(BLOCKING, "Images", sectionName + " has an invalid image path: " + path + "."));
     return;
   }
 
@@ -149,8 +183,76 @@ function validateMarkdownImagePath({ errors, imagePaths, sectionName, path }) {
   }
 
   if (!imagePaths.has(path)) {
-    errors.push(sectionName + " references an image that is not saved: " + path + ".");
+    items.push(createItem(BLOCKING, "Images", sectionName + " references an image that is not saved: " + path + "."));
   }
+}
+
+function validateReferences(book, items) {
+  const references = Array.isArray(book?.bibliography?.references)
+    ? book.bibliography.references
+    : [];
+  const referencesByKey = new Map(references.map((reference) => [reference.key, reference]));
+  const citedKeys = new Set();
+  const chapters = Array.isArray(book && book.chapters) ? book.chapters : [];
+
+  getBookTextSections(book).forEach(function (section) {
+    extractCitationKeys(section.content).forEach(function (key) {
+      citedKeys.add(key);
+      if (!referencesByKey.has(key)) {
+        items.push(createItem(BLOCKING, "References", section.name + " cites a missing reference: " + key + "."));
+      }
+    });
+  });
+
+  if (citedKeys.size > 0 && references.length === 0) {
+    items.push(createItem(BLOCKING, "References", "Add bibliography references before publishing cited chapters."));
+  } else if (references.length === 0) {
+    items.push(createItem(READY, "References", "No references are required for this book."));
+  } else {
+    items.push(createItem(READY, "References", references.length + " reference" + (references.length === 1 ? "" : "s") + " available."));
+  }
+
+  chapters.forEach(function (chapter, index) {
+    validateChapterBibliography({
+      chapter,
+      chapterNumber: index + 1,
+      referencesByKey,
+      items
+    });
+  });
+}
+
+function validateChapterBibliography({ chapter, chapterNumber, referencesByKey, items }) {
+  const referenceKeys = Array.isArray(chapter?.referenceKeys)
+    ? chapter.referenceKeys
+    : [];
+  const uniqueKeys = new Set(referenceKeys);
+  const sectionName = "Chapter " + chapterNumber;
+
+  referenceKeys.forEach(function (key) {
+    if (!referencesByKey.has(key)) {
+      items.push(createItem(BLOCKING, "References", sectionName + " includes a missing chapter bibliography reference: " + key + "."));
+    }
+  });
+
+  if (chapter?.showBibliography && uniqueKeys.size === 0) {
+    items.push(createItem(WARNING, "References", sectionName + " has chapter references enabled but no references selected."));
+  }
+
+  if (!chapter?.showBibliography && uniqueKeys.size > 0) {
+    items.push(createItem(WARNING, "References", sectionName + " has selected chapter references, but the chapter reference list is hidden."));
+  }
+
+  const citedKeys = extractCitationKeys(chapter?.content || "");
+  citedKeys.forEach(function (key) {
+    if (
+      referencesByKey.has(key) &&
+      chapter?.showBibliography &&
+      !uniqueKeys.has(key)
+    ) {
+      items.push(createItem(WARNING, "References", sectionName + " cites " + key + " but does not include it in the chapter reference list."));
+    }
+  });
 }
 
 function getBookTextSections(book) {
@@ -175,17 +277,42 @@ function getBookTextSections(book) {
   return sections;
 }
 
-function extractMarkdownImagePaths(markdown) {
-  const paths = [];
-  const imagePattern = /!\[[^\]]*]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
+function extractMarkdownImages(markdown) {
+  const images = [];
+  const imagePattern = /!\[([^\]]*)]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
   let match = imagePattern.exec(markdown || "");
 
   while (match) {
-    paths.push(match[1].trim());
+    images.push({
+      alt: match[1].trim(),
+      path: match[2].trim()
+    });
     match = imagePattern.exec(markdown || "");
   }
 
-  return paths;
+  return images;
+}
+
+function extractCitationKeys(markdown) {
+  const keys = [];
+  const text = String(markdown || "");
+  const citePattern = /\{cite\}`([a-z0-9._:-]+)`/gi;
+  const refPattern = /\{ref\}`[^`<]*<reference-([a-z0-9._:-]+)>`/gi;
+  let match = citePattern.exec(text);
+
+  while (match) {
+    keys.push(match[1]);
+    match = citePattern.exec(text);
+  }
+
+  match = refPattern.exec(text);
+
+  while (match) {
+    keys.push(match[1]);
+    match = refPattern.exec(text);
+  }
+
+  return keys;
 }
 
 function isExternalImagePath(path) {
@@ -216,4 +343,8 @@ function isImageDataUrl(dataUrl) {
 
 function normalizeTitle(title) {
   return String(title || "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function createItem(status, category, message) {
+  return { status, category, message };
 }

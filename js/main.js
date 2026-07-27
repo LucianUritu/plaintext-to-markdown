@@ -40,6 +40,7 @@ import { markdownToHtml } from "./markdownRenderer.js";
 import { PlatformTour } from "./platformTour.js";
 import { PublishProgress } from "./publishProgress.js";
 import { PublishMessagePanel } from "./publishMessagePanel.js";
+import { PublishReadinessPanel } from "./publishReadinessPanel.js";
 import { PublishWorkflow } from "./publishWorkflow.js";
 import { setupEditorShortcuts } from "./shortcuts.js";
 import { setupFormattingToolbar } from "./formattingToolbar.js";
@@ -58,6 +59,15 @@ document.addEventListener("DOMContentLoaded", function () {
   const versionPickerModal = new VersionPickerModal(elements);
   const publishProgress = new PublishProgress(elements);
   const publishMessagePanel = new PublishMessagePanel(elements);
+  const publishReadinessPanel = new PublishReadinessPanel({
+    elements,
+    getCurrentBook: function () {
+      return currentBook;
+    },
+    getPublishTarget,
+    saveActiveEditorContent,
+    setStatus
+  });
   const platformTour = new PlatformTour({
     onBeforeStep: preparePlatformTourStep,
     onStop: closePlatformTour
@@ -809,9 +819,10 @@ document.addEventListener("DOMContentLoaded", function () {
       saveBook(currentBook);
       setEditorInactive();
       loadImagePreviewUrlsFromCurrentBook();
-      hidePublishResult();
-      navigateToBookView();
-      setStatus("Now editing version " + entry.version + ".");
+    hidePublishResult();
+    publishReadinessPanel.hide();
+    navigateToBookView();
+    setStatus("Now editing version " + entry.version + ".");
     } catch (error) {
       setStatus("Could not open that published version.");
     }
@@ -853,12 +864,14 @@ document.addEventListener("DOMContentLoaded", function () {
     clearImagePreviewUrls();
 
     hidePublishResult();
+    publishReadinessPanel.hide();
     navigateToBookView();
     setStatus("New book created.");
   });
 
   elements.closeBookButton.addEventListener("click", function () {
     hidePublishResult();
+    publishReadinessPanel.hide();
     chapterDeleteMode = false;
     activeChapter = null;
     activeEditorType = null;
@@ -897,6 +910,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
   elements.publishPreviewButton.addEventListener("click", function () {
     publishWorkflow.publish();
+  });
+
+  elements.readinessCheckButton.addEventListener("click", function () {
+    publishReadinessPanel.run();
+  });
+
+  elements.publishReadinessClose.addEventListener("click", function () {
+    publishReadinessPanel.hide();
   });
 
   elements.githubLoginButton.addEventListener("click", function () {

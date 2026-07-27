@@ -78,6 +78,9 @@
         </div>
 
         <div class="book-actions">
+          <button id="readinessCheckButton" class="secondary">
+            Readiness Check
+          </button>
           <button id="publishPreviewButton">
             Publish
           </button>
@@ -91,6 +94,20 @@
       </div>
 
       <div id="chapterList" class="chapter-list"></div>
+
+      <section id="publishReadinessPanel" class="readiness-panel hidden" aria-live="polite">
+        <div class="readiness-header">
+          <div>
+            <p class="readiness-kicker">Pre-publish check</p>
+            <h2 id="publishReadinessTitle">Readiness Check</h2>
+          </div>
+          <button id="publishReadinessClose" class="icon-button" type="button" aria-label="Close readiness check">
+            &times;
+          </button>
+        </div>
+        <p id="publishReadinessSummary" class="readiness-summary"></p>
+        <ol id="publishReadinessList" class="readiness-list"></ol>
+      </section>
     </section>
     
     <section id="versionHistoryPanel" class="version-history-panel hidden">
