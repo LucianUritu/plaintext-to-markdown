@@ -73,7 +73,7 @@ test("platform tour prepares a step before choosing the target", async () => {
   assert.equal(target.scrolled, true);
 });
 
-test("platform tour runs finish callback after the last step", async () => {
+test("platform tour runs stop callback after the last step", async () => {
   const { PlatformTour } = await import("../js/platformTour.js");
   const calls = [];
   const target = createElement({
@@ -89,22 +89,22 @@ test("platform tour runs finish callback after the last step", async () => {
       title: "Final step",
       body: "Complete the tour."
     }],
-    onFinish: () => calls.push("finish")
+    onStop: () => calls.push("stop")
   });
 
   await tour.start();
   await tour.next();
 
-  assert.deepEqual(calls, ["finish"]);
+  assert.deepEqual(calls, ["stop"]);
 });
 
-test("platform tour does not run finish callback when closed early", async () => {
+test("platform tour runs stop callback when closed early", async () => {
   const { PlatformTour } = await import("../js/platformTour.js");
   const target = createElement({
     selector: "#target",
     visibleAfterPrepare: true
   });
-  let finished = false;
+  const calls = [];
   const tour = new PlatformTour({
     document: createFakeDocument(target),
     window: createFakeWindow(),
@@ -114,15 +114,38 @@ test("platform tour does not run finish callback when closed early", async () =>
       title: "First step",
       body: "Close the tour."
     }],
-    onFinish: () => {
-      finished = true;
-    }
+    onStop: () => calls.push("stop")
   });
 
   await tour.start();
   tour.stop();
 
-  assert.equal(finished, false);
+  assert.deepEqual(calls, ["stop"]);
+});
+
+test("platform tour runs stop callback when dismissed with Escape", async () => {
+  const { PlatformTour } = await import("../js/platformTour.js");
+  const target = createElement({
+    selector: "#target",
+    visibleAfterPrepare: true
+  });
+  const calls = [];
+  const tour = new PlatformTour({
+    document: createFakeDocument(target),
+    window: createFakeWindow(),
+    steps: [{
+      id: "first",
+      target: "#target",
+      title: "First step",
+      body: "Close the tour."
+    }],
+    onStop: () => calls.push("stop")
+  });
+
+  await tour.start();
+  tour.handleKeydown({ key: "Escape" });
+
+  assert.deepEqual(calls, ["stop"]);
 });
 
 function createFakeDocument(target) {

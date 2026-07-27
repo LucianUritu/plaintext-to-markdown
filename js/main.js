@@ -57,7 +57,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const publishMessagePanel = new PublishMessagePanel(elements);
   const platformTour = new PlatformTour({
     onBeforeStep: preparePlatformTourStep,
-    onFinish: finishPlatformTour
+    onStop: closePlatformTour
   });
   const versionHistoryPanel = new VersionHistoryPanel({
     elements,
@@ -207,7 +207,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  function finishPlatformTour() {
+  function closePlatformTour() {
     chapterDeleteMode = false;
     setEditorInactive();
     hidePublishResult();
