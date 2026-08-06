@@ -1,4 +1,5 @@
 token
 .env
 node_modules/
+dist/
 USER_MANUAL.MD

@@ -6,6 +6,7 @@ const { VersioningService } = require("./versioningService");
 
 function createRoutes({
   appBaseUrl,
+  gitHubClientId,
   rootDirectory,
   sessionStore,
   readJsonRequest,
@@ -13,12 +14,17 @@ function createRoutes({
   sendJson
 }) {
   async function startGitHubLogin(request, response) {
-    const clientId = process.env.GITHUB_CLIENT_ID;
+    const clientId = gitHubClientId || process.env.GITHUB_CLIENT_ID;
 
     if (!clientId) {
       sendJson(response, 500, {
-        error: "Missing GITHUB_CLIENT_ID. Copy .env.example to .env and fill it in."
+        error: "Missing GITHUB_CLIENT_ID. Set it in .env or desktop/config.json."
       });
+      return;
+    }
+
+    if (!process.env.GITHUB_CLIENT_SECRET) {
+      await startGitHubDeviceLogin(request, response, clientId);
       return;
     }
 
@@ -35,6 +41,31 @@ function createRoutes({
     authorizeUrl.searchParams.set("state", state);
 
     redirect(response, authorizeUrl.toString());
+  }
+
+  async function startGitHubDeviceLogin(request, response, clientId) {
+    const session = sessionStore.getOrCreateSession(request, response);
+    const deviceData = await requestGitHubDeviceCode(clientId);
+
+    if (!deviceData.device_code) {
+      console.error("GitHub device code response:", deviceData);
+      sendJson(response, 502, {
+        error: deviceData.error_description || "Could not start GitHub device login."
+      });
+      return;
+    }
+
+    session.githubDeviceLogin = {
+      deviceCode: deviceData.device_code,
+      expiresAt: Date.now() + Number(deviceData.expires_in || 900) * 1000,
+      intervalSeconds: Number(deviceData.interval || 5),
+      lastPollAt: 0
+    };
+
+    sendHtml(response, 200, renderGitHubDeviceLoginPage({
+      userCode: deviceData.user_code,
+      verificationUri: deviceData.verification_uri || "https://github.com/login/device"
+    }));
   }
 
   async function finishGitHubLogin(request, response, url) {
@@ -93,6 +124,78 @@ function createRoutes({
       profileUrl: user.html_url,
       scope: session.githubScope,
       missingScopes: getMissingGitHubScopes(session.githubScope)
+    });
+  }
+
+  async function getGitHubDeviceLoginStatus(request, response) {
+    const session = sessionStore.getSessionFromRequest(request);
+
+    if (!session || !session.githubDeviceLogin) {
+      sendJson(response, 400, {
+        status: "error",
+        error: "No GitHub device login is active."
+      });
+      return;
+    }
+
+    const deviceLogin = session.githubDeviceLogin;
+
+    if (Date.now() > deviceLogin.expiresAt) {
+      delete session.githubDeviceLogin;
+      sendJson(response, 400, {
+        status: "expired",
+        error: "GitHub login expired. Please try again."
+      });
+      return;
+    }
+
+    const waitMs = deviceLogin.intervalSeconds * 1000;
+
+    if (Date.now() - deviceLogin.lastPollAt < waitMs) {
+      sendJson(response, 200, {
+        status: "pending",
+        intervalSeconds: deviceLogin.intervalSeconds
+      });
+      return;
+    }
+
+    deviceLogin.lastPollAt = Date.now();
+
+    const tokenData = await exchangeDeviceCodeForToken(deviceLogin.deviceCode);
+
+    if (tokenData.error === "authorization_pending") {
+      sendJson(response, 200, {
+        status: "pending",
+        intervalSeconds: deviceLogin.intervalSeconds
+      });
+      return;
+    }
+
+    if (tokenData.error === "slow_down") {
+      deviceLogin.intervalSeconds += 5;
+      sendJson(response, 200, {
+        status: "pending",
+        intervalSeconds: deviceLogin.intervalSeconds
+      });
+      return;
+    }
+
+    if (!tokenData.access_token) {
+      console.error("GitHub device token response:", tokenData);
+      delete session.githubDeviceLogin;
+      sendJson(response, 400, {
+        status: "error",
+        error: tokenData.error_description || "GitHub login was not completed."
+      });
+      return;
+    }
+
+    delete session.githubDeviceLogin;
+    session.githubAccessToken = tokenData.access_token;
+    session.githubScope = tokenData.scope || "";
+
+    sendJson(response, 200, {
+      status: "connected"
     });
   }
 
@@ -364,10 +467,43 @@ function createRoutes({
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        client_id: process.env.GITHUB_CLIENT_ID,
+        client_id: gitHubClientId || process.env.GITHUB_CLIENT_ID,
         client_secret: process.env.GITHUB_CLIENT_SECRET,
         code,
         redirect_uri: appBaseUrl + "/auth/github/callback"
+      })
+    });
+
+    return response.json();
+  }
+
+  async function requestGitHubDeviceCode(clientId) {
+    const response = await fetch("https://github.com/login/device/code", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        client_id: clientId,
+        scope: buildGitHubOAuthScope(process.env.GITHUB_OAUTH_SCOPE)
+      })
+    });
+
+    return response.json();
+  }
+
+  async function exchangeDeviceCodeForToken(deviceCode) {
+    const response = await fetch("https://github.com/login/oauth/access_token", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        client_id: gitHubClientId || process.env.GITHUB_CLIENT_ID,
+        device_code: deviceCode,
+        grant_type: "urn:ietf:params:oauth:grant-type:device_code"
       })
     });
 
@@ -378,6 +514,7 @@ function createRoutes({
     finishGitHubLogin,
     getCommitInfo,
     getCurrentUser,
+    getGitHubDeviceLoginStatus,
     getGitHubBook,
     getGitHubBooks,
     getPublishWorkflowStatus,
@@ -394,6 +531,119 @@ function cleanInput(value) {
 
 function normalizeRepositoryVisibility(value) {
   return value === "private" ? "private" : "public";
+}
+
+function sendHtml(response, statusCode, html) {
+  response.writeHead(statusCode, {
+    "Content-Type": "text/html; charset=utf-8"
+  });
+  response.end(html);
+}
+
+function renderGitHubDeviceLoginPage({ userCode, verificationUri }) {
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Connect GitHub</title>
+  <style>
+    body {
+      align-items: center;
+      background: #f7f8fb;
+      color: #1f2937;
+      display: flex;
+      font-family: Arial, sans-serif;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+    main {
+      background: white;
+      border: 1px solid #d7dce5;
+      border-radius: 8px;
+      box-shadow: 0 16px 40px rgba(31, 41, 55, 0.12);
+      max-width: 520px;
+      padding: 32px;
+      text-align: center;
+    }
+    code {
+      background: #eef2f7;
+      border-radius: 6px;
+      display: inline-block;
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      margin: 16px 0;
+      padding: 14px 18px;
+    }
+    a, button {
+      background: #1f6feb;
+      border: 0;
+      border-radius: 6px;
+      color: white;
+      cursor: pointer;
+      display: inline-block;
+      font-size: 15px;
+      margin-top: 10px;
+      padding: 10px 14px;
+      text-decoration: none;
+    }
+    p {
+      line-height: 1.5;
+    }
+    .status {
+      color: #5f6b7a;
+      min-height: 24px;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Connect GitHub</h1>
+    <p>Enter this code on GitHub to connect the desktop app.</p>
+    <code>${escapeHtml(userCode)}</code>
+    <p><a href="${escapeHtml(verificationUri)}" target="_blank" rel="noopener noreferrer">Open GitHub device login</a></p>
+    <p class="status" id="status">Waiting for GitHub approval...</p>
+  </main>
+  <script>
+    async function poll() {
+      const status = document.getElementById("status");
+
+      try {
+        const response = await fetch("/auth/github/device/status");
+        const result = await response.json();
+
+        if (result.status === "connected") {
+          status.textContent = "Connected. Returning to the app...";
+          window.location.href = "/?github=connected";
+          return;
+        }
+
+        if (result.status === "expired" || result.status === "error") {
+          status.textContent = result.error || "GitHub login failed.";
+          return;
+        }
+
+        setTimeout(poll, Number(result.intervalSeconds || 5) * 1000);
+      } catch (error) {
+        status.textContent = "Could not check GitHub login status.";
+      }
+    }
+
+    setTimeout(poll, 5000);
+  </script>
+</body>
+</html>`;
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function buildGitHubOAuthScope(configuredScope) {

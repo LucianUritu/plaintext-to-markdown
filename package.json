@@ -1,14 +1,23 @@
 {
   "name": "plaintext-to-markdown",
   "version": "0.1.0",
+  "description": "Desktop book authoring and publishing tool.",
   "private": true,
+  "main": "desktop/main.js",
   "scripts": {
     "start": "node server.js",
+    "desktop": "electron .",
+    "package": "electron-packager . PlaintextToMarkdown --platform=win32 --arch=x64 --out=dist --overwrite --prune=true --ignore=\"^/\\.env$\" --ignore=\"^/token$\" --ignore=\"^/dist($|/)\" --ignore=\"^/test($|/)\" --ignore=\"^/\\.agents($|/)\" --ignore=\"^/\\.codex($|/)\" --ignore=\"^/\\.git($|/)\"",
+    "dist": "npm run package",
     "test": "node --test",
     "test:coverage": "node --test --experimental-test-coverage",
     "test:watch": "node --test --watch"
   },
   "engines": {
     "node": ">=18"
+  },
+  "devDependencies": {
+    "electron": "^39.8.10",
+    "electron-packager": "^17.1.2"
   }
 }
