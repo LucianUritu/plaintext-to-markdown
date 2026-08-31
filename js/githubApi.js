@@ -68,6 +68,26 @@ export async function publishBookPreview(payload) {
   return result;
 }
 
+export async function markBookDone(payload) {
+  const response = await fetch("/api/book-done", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...createCsrfHeaders()
+    },
+    body: JSON.stringify(payload)
+  });
+  const result = await readJsonResponse(response);
+
+  if (!response.ok) {
+    const error = new Error(result.error || "Could not send completion email.");
+    error.status = response.status;
+    throw error;
+  }
+
+  return result;
+}
+
 function rememberCsrfToken(body) {
   if (body && typeof body.csrfToken === "string") {
     csrfToken = body.csrfToken;

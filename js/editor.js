@@ -20,6 +20,7 @@ export function getEditorElements() {
     removeChapterButton: document.getElementById("removeChapterButton"),
     readinessCheckButton: document.getElementById("readinessCheckButton"),
     publishPreviewButton: document.getElementById("publishPreviewButton"),
+    markBookDoneButton: document.getElementById("markBookDoneButton"),
     backToBookButton: document.getElementById("backToBookButton"),
 
     bookTitleInput: document.getElementById("bookTitleInput"),

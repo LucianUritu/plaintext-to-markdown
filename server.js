@@ -50,6 +50,7 @@ router.get("/auth/github/device/status", routes.getGitHubDeviceLoginStatus);
   router.get("/api/me", routes.getCurrentUser);
   router.get("/api/books", routes.getGitHubBooks);
   router.post("/api/publish-book", routes.publishBookToGitHub);
+  router.post("/api/book-done", routes.markBookDone);
   router.get("/api/publish-book/status", routes.getPublishWorkflowStatus);
   router.get("/api/github/branches", routes.getVersionBranches);
   router.get("/api/github/commit", routes.getCommitInfo);

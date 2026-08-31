@@ -21,5 +21,8 @@
   "devDependencies": {
     "electron": "^39.8.10",
     "electron-packager": "^17.1.2"
+  },
+  "dependencies": {
+    "nodemailer": "^9.0.6"
   }
 }

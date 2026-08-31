@@ -32,7 +32,7 @@ import { AppNavigation } from "./appNavigation.js";
 import { BibliographyController } from "./bibliographyController.js";
 import { exampleText } from "./examples.js";
 import { copyMarkdown, downloadMarkdown } from "./fileActions.js";
-import { loadGitHubBook } from "./githubApi.js";
+import { loadGitHubBook, markBookDone } from "./githubApi.js";
 import { GitHubBooksController } from "./githubBooksController.js";
 import { setupImageHandler } from "./imageHandler.js";
 import { plainTextToMarkdown } from "./markdownConverter.js";
@@ -914,6 +914,34 @@ document.addEventListener("DOMContentLoaded", function () {
 
   elements.readinessCheckButton.addEventListener("click", function () {
     publishReadinessPanel.run();
+  });
+
+  elements.markBookDoneButton.addEventListener("click", async function () {
+    if (!currentBook) {
+      setStatus("Create a book first.");
+      return;
+    }
+
+    saveActiveEditorContent();
+    elements.markBookDoneButton.disabled = true;
+    elements.markBookDoneButton.textContent = "Sending...";
+    setStatus("Sending completion email...", 0);
+
+    try {
+      await markBookDone({
+        bookTitle: currentBook.title || "Untitled Book"
+      });
+      setStatus("Done email sent.");
+    } catch (error) {
+      if (error.status === 401) {
+        setStatus("Sign in with GitHub before marking the book done.");
+      } else {
+        setStatus(error.message || "Could not send done email.");
+      }
+    } finally {
+      elements.markBookDoneButton.disabled = false;
+      elements.markBookDoneButton.textContent = "Done";
+    }
   });
 
   elements.publishReadinessClose.addEventListener("click", function () {

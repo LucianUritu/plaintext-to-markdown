@@ -55,6 +55,16 @@ test("publish preview sends JSON", async () => {
 test("publish preview exposes API error codes", async () => withFetch({ ok: false, status: 409, json: async () => ({ error: "Exists", code: "REPOSITORY_EXISTS" }) }, async () => {
   await assert.rejects(async () => (await githubApi).publishBookPreview({}), (error) => error.code === "REPOSITORY_EXISTS");
 }));
+test("book done sends JSON and CSRF", async () => {
+  let options;
+  await withFetch((url, value) => { options = value; return { ok: true, json: async () => ({ csrfToken: "done-token", notified: true }) }; }, async () => {
+    await (await githubApi).loadGitHubAuthState();
+    await (await githubApi).markBookDone({ bookTitle: "Book" });
+  });
+  assert.equal(options.method, "POST");
+  assert.equal(options.headers["X-CSRF-Token"], "done-token");
+  assert.equal(options.body, '{"bookTitle":"Book"}');
+});
 test("logout uses POST", async () => {
   let options;
   await withFetch((url, value) => { options = value; return { ok: true, json: async () => ({ csrfToken: "logout-token" }) }; }, async () => {

@@ -168,6 +168,45 @@ test("logout rejects invalid CSRF tokens for existing sessions", () => {
   assert.equal(response.statusCode, 403);
   assert.match(response.body, /Invalid security token/);
 });
+test("book done route sends completion notifications", async () => {
+  const store = createSessionStore("secret"); const sessionResponse = fakeResponse();
+  const session = store.getOrCreateSession({ headers: {} }, sessionResponse);
+  session.githubAccessToken = "token";
+  session.githubLogin = "alice";
+
+  let notification;
+  const response = fakeHttpResponse();
+  const routes = createRoutes({
+    appBaseUrl: "http://127.0.0.1:3000",
+    completionNotificationService: {
+      async sendBookFinishedEmail(value) {
+        notification = value;
+        return { notified: true };
+      }
+    },
+    rootDirectory: path.resolve(__dirname, ".."),
+    sessionStore: store,
+    readJsonRequest: async () => ({ bookTitle: "Library Guide" }),
+    redirect() {},
+    sendJson(response, status, body) {
+      response.writeHead(status, { "Content-Type": "application/json" });
+      response.end(JSON.stringify(body));
+    }
+  });
+
+  await routes.markBookDone({
+    headers: {
+      cookie: sessionResponse.header.split(";")[0],
+      "x-csrf-token": session.csrfToken
+    }
+  }, response);
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(notification, {
+    username: "alice",
+    bookTitle: "Library Guide"
+  });
+});
 test("GitHub books restore bibliography pages and references", async () => {
   const files = {
     "book/_config.yml": "title: Book\nbibtex_bibfiles:\n  - references.bib\n",

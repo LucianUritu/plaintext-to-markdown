@@ -413,6 +413,14 @@ pre {
   background: #0f6248;
 }
 
+.book-actions .done-book-action {
+  background: #2457a6;
+}
+
+.book-actions .done-book-action:hover {
+  background: #1b4587;
+}
+
 .book-actions .close-book-action {
   margin-left: auto;
   border: 1px solid #f2b8b5;

@@ -1,4 +1,5 @@
 const crypto = require("node:crypto");
+const { CompletionNotificationService } = require("./completionNotificationService");
 const { createGitHubClient } = require("./githubClient");
 const { withSecurityHeaders } = require("./httpUtils");
 const { PublishService } = require("./publishService");
@@ -7,6 +8,7 @@ const { VersioningService } = require("./versioningService");
 
 function createRoutes({
   appBaseUrl,
+  completionNotificationService,
   gitHubClientId,
   rootDirectory,
   sessionStore,
@@ -127,6 +129,7 @@ function createRoutes({
     }
 
     const user = result.user;
+    session.githubLogin = user.login;
 
     sendJson(response, 200, {
       authenticated: true,
@@ -499,6 +502,45 @@ function createRoutes({
     });
   }
 
+  async function markBookDone(request, response) {
+    const session = getRequiredGitHubSession(request, response);
+
+    if (!session) {
+      return;
+    }
+
+    if (!verifyCsrfToken(request, response, session)) {
+      return;
+    }
+
+    const body = await readJsonRequest(request);
+    const bookTitle = cleanInput(body.bookTitle || "Untitled Book");
+
+    if (!bookTitle) {
+      sendJson(response, 400, {
+        error: "Missing book title."
+      });
+      return;
+    }
+
+    try {
+      const username = await getGitHubUsername(session);
+      const result = await createCompletionNotificationService()
+        .sendBookFinishedEmail({
+          username,
+          bookTitle
+        });
+
+      sendJson(response, 200, result);
+    } catch (error) {
+      const status = error.code === "EMAIL_NOT_CONFIGURED" ? 500 : 502;
+
+      sendJson(response, status, {
+        error: error.message
+      });
+    }
+  }
+
   function verifyCsrfToken(request, response, session) {
     const token = request.headers["x-csrf-token"];
 
@@ -546,6 +588,25 @@ function createRoutes({
       createGitHubClient(session.githubAccessToken),
       options
     );
+  }
+
+  function createCompletionNotificationService() {
+    return completionNotificationService || new CompletionNotificationService();
+  }
+
+  async function getGitHubUsername(session) {
+    if (session.githubLogin) {
+      return session.githubLogin;
+    }
+
+    const result = await createGitHubClient(session.githubAccessToken).getCurrentUser();
+
+    if (!result.ok || !result.user || !result.user.login) {
+      throw new Error("Could not read GitHub user.");
+    }
+
+    session.githubLogin = result.user.login;
+    return session.githubLogin;
   }
 
   async function exchangeCodeForToken(code) {
@@ -606,6 +667,7 @@ function createRoutes({
     getGitHubDeviceLoginStatus,
     getGitHubBook,
     getGitHubBooks,
+    markBookDone,
     getPublishWorkflowStatus,
     getVersionBranches,
     logout,
