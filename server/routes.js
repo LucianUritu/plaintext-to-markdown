@@ -1,5 +1,6 @@
 const crypto = require("node:crypto");
 const { createGitHubClient } = require("./githubClient");
+const { withSecurityHeaders } = require("./httpUtils");
 const { PublishService } = require("./publishService");
 const { TeachBooksService } = require("./teachBooksService");
 const { VersioningService } = require("./versioningService");
@@ -62,10 +63,20 @@ function createRoutes({
       lastPollAt: 0
     };
 
+    const nonce = crypto.randomBytes(16).toString("base64");
+
     sendHtml(response, 200, renderGitHubDeviceLoginPage({
+      nonce,
       userCode: deviceData.user_code,
       verificationUri: deviceData.verification_uri || "https://github.com/login/device"
-    }));
+    }), {
+      "Content-Security-Policy":
+        "default-src 'self'; img-src 'self' data:; style-src 'self' 'nonce-" +
+        nonce +
+        "'; script-src 'self' 'nonce-" +
+        nonce +
+        "'; connect-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'"
+    });
   }
 
   async function finishGitHubLogin(request, response, url) {
@@ -95,11 +106,12 @@ function createRoutes({
   }
 
   async function getCurrentUser(request, response) {
-    const session = sessionStore.getSessionFromRequest(request);
+    const session = sessionStore.getOrCreateSession(request, response);
 
     if (!session || !session.githubAccessToken) {
       sendJson(response, 200, {
-        authenticated: false
+        authenticated: false,
+        csrfToken: session.csrfToken
       });
       return;
     }
@@ -123,6 +135,7 @@ function createRoutes({
       avatarUrl: user.avatar_url,
       profileUrl: user.html_url,
       scope: session.githubScope,
+      csrfToken: session.csrfToken,
       missingScopes: getMissingGitHubScopes(session.githubScope)
     });
   }
@@ -240,6 +253,13 @@ function createRoutes({
       return;
     }
 
+    if (!isSafeGitHubOwnerOrRepo(owner) || !isSafeGitHubOwnerOrRepo(repoName) || !isSafeGitHubBranch(branch)) {
+      sendJson(response, 400, {
+        error: "Invalid GitHub repository or branch."
+      });
+      return;
+    }
+
     const book = await createTeachBooksService(session).loadBook({
       owner,
       repoName,
@@ -265,6 +285,10 @@ function createRoutes({
       return;
     }
 
+    if (!verifyCsrfToken(request, response, session)) {
+      return;
+    }
+
     const body = await readJsonRequest(request);
     const owner = cleanInput(body.owner);
     const repo = cleanInput(body.repo);
@@ -273,6 +297,17 @@ function createRoutes({
     if (!branch) {
       sendJson(response, 400, {
         error: "Missing GitHub branch."
+      });
+      return;
+    }
+
+    if (
+      (owner && !isSafeGitHubOwnerOrRepo(owner)) ||
+      (repo && !isSafeGitHubOwnerOrRepo(repo)) ||
+      !isSafeGitHubBranch(branch)
+    ) {
+      sendJson(response, 400, {
+        error: "Invalid GitHub repository or branch."
       });
       return;
     }
@@ -325,6 +360,18 @@ function createRoutes({
     if (!owner || !repo || !branch || !commitSha) {
       sendJson(response, 400, {
         error: "Missing repository, branch, or commit SHA."
+      });
+      return;
+    }
+
+    if (
+      !isSafeGitHubOwnerOrRepo(owner) ||
+      !isSafeGitHubOwnerOrRepo(repo) ||
+      !isSafeGitHubBranch(branch) ||
+      !/^[a-f0-9]{40}$/i.test(commitSha)
+    ) {
+      sendJson(response, 400, {
+        error: "Invalid GitHub repository, branch, or commit SHA."
       });
       return;
     }
@@ -385,6 +432,13 @@ function createRoutes({
       return;
     }
 
+    if (!isSafeGitHubOwnerOrRepo(owner) || !isSafeGitHubOwnerOrRepo(repo) || !isSafeGitHubBranch(prefix)) {
+      sendJson(response, 400, {
+        error: "Invalid GitHub repository or branch prefix."
+      });
+      return;
+    }
+
     try {
       const branches = await createVersioningService(session, { prefix })
         .listVersionBranches({ owner, repo, perPage });
@@ -412,6 +466,17 @@ function createRoutes({
       return;
     }
 
+    if (
+      !isSafeGitHubOwnerOrRepo(owner) ||
+      !isSafeGitHubOwnerOrRepo(repo) ||
+      !/^[a-f0-9]{40}$/i.test(sha)
+    ) {
+      sendJson(response, 400, {
+        error: "Invalid GitHub repository or commit SHA."
+      });
+      return;
+    }
+
     try {
       const commit = await createVersioningService(session)
         .getCommit({ owner, repo, sha });
@@ -422,10 +487,34 @@ function createRoutes({
   }
   
   function logout(request, response) {
+    const session = sessionStore.getSessionFromRequest(request);
+
+    if (session && !verifyCsrfToken(request, response, session)) {
+      return;
+    }
+
     sessionStore.destroySession(request, response);
     sendJson(response, 200, {
       authenticated: false
     });
+  }
+
+  function verifyCsrfToken(request, response, session) {
+    const token = request.headers["x-csrf-token"];
+
+    if (
+      typeof token !== "string" ||
+      typeof session.csrfToken !== "string" ||
+      token.length !== session.csrfToken.length ||
+      !crypto.timingSafeEqual(Buffer.from(token), Buffer.from(session.csrfToken))
+    ) {
+      sendJson(response, 403, {
+        error: "Invalid security token."
+      });
+      return false;
+    }
+
+    return true;
   }
 
   function getRequiredGitHubSession(request, response) {
@@ -533,21 +622,40 @@ function normalizeRepositoryVisibility(value) {
   return value === "private" ? "private" : "public";
 }
 
-function sendHtml(response, statusCode, html) {
-  response.writeHead(statusCode, {
-    "Content-Type": "text/html; charset=utf-8"
-  });
+function isSafeGitHubOwnerOrRepo(value) {
+  return /^[a-z0-9][a-z0-9._-]{0,99}$/i.test(String(value || ""));
+}
+
+function isSafeGitHubBranch(value) {
+  const branch = String(value || "");
+
+  return (
+    branch.length > 0 &&
+    branch.length <= 255 &&
+    !/[\x00-\x20~^:?*\[\\\]]/.test(branch) &&
+    !branch.includes("..") &&
+    !branch.endsWith(".") &&
+    !branch.endsWith("/") &&
+    !branch.endsWith(".lock")
+  );
+}
+
+function sendHtml(response, statusCode, html, headers = {}) {
+  response.writeHead(statusCode, withSecurityHeaders({
+    "Content-Type": "text/html; charset=utf-8",
+    ...headers
+  }));
   response.end(html);
 }
 
-function renderGitHubDeviceLoginPage({ userCode, verificationUri }) {
+function renderGitHubDeviceLoginPage({ nonce, userCode, verificationUri }) {
   return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Connect GitHub</title>
-  <style>
+  <style nonce="${escapeHtml(nonce)}">
     body {
       align-items: center;
       background: #f7f8fb;
@@ -606,7 +714,7 @@ function renderGitHubDeviceLoginPage({ userCode, verificationUri }) {
     <p><a href="${escapeHtml(verificationUri)}" target="_blank" rel="noopener noreferrer">Open GitHub device login</a></p>
     <p class="status" id="status">Waiting for GitHub approval...</p>
   </main>
-  <script>
+  <script nonce="${escapeHtml(nonce)}">
     async function poll() {
       const status = document.getElementById("status");
 

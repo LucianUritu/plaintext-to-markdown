@@ -1,7 +1,11 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const path = require("node:path");
 const parser = require("../server/teachBooksParser");
 const { HttpRouter } = require("../server/router");
+const { createStaticFileServer, isAllowedStaticPath } = require("../server/httpUtils");
+const { createAppServer, isTrustedLocalRequest } = require("../server");
+const { createRoutes } = require("../server/routes");
 const { PagesUrlResolver, VersionBranchPagesUrlStrategy, DefaultBranchPagesUrlStrategy } = require("../server/publishingTargets");
 const { VersioningService } = require("../server/versioningService");
 const { createSessionStore } = require("../server/sessionStore");
@@ -84,6 +88,86 @@ test("secure sessions set Secure cookies", () => {
   store.getOrCreateSession({ headers: {} }, response);
   assert.match(response.header, /Secure/);
 });
+test("sessions include a CSRF token", () => {
+  const store = createSessionStore("secret"); const response = fakeResponse();
+  const session = store.getOrCreateSession({ headers: {} }, response);
+  assert.match(session.csrfToken, /^[a-f0-9]{64}$/);
+});
+test("static allowlist blocks secrets and package metadata", () => {
+  assert.equal(isAllowedStaticPath("index.html"), true);
+  assert.equal(isAllowedStaticPath("js/main.js"), true);
+  assert.equal(isAllowedStaticPath("assets/logo.png"), true);
+  assert.equal(isAllowedStaticPath(".env"), false);
+  assert.equal(isAllowedStaticPath("token"), false);
+  assert.equal(isAllowedStaticPath("package.json"), false);
+});
+test("static server refuses non-allowlisted project files", () => {
+  const response = fakeHttpResponse();
+  createStaticFileServer(path.resolve(__dirname, ".."))("/package.json", response);
+  assert.equal(response.statusCode, 403);
+  assert.equal(response.body, "Forbidden");
+});
+test("app server defaults to loopback host", () => {
+  const appServer = createAppServer({
+    appBaseUrl: "http://127.0.0.1:3456",
+    port: 3456
+  });
+  assert.equal(appServer.host, "127.0.0.1");
+  assert.equal(appServer.appBaseUrl, "http://127.0.0.1:3456");
+  appServer.server.close();
+});
+test("trusted request guard checks Host and Origin", () => {
+  assert.equal(
+    isTrustedLocalRequest(
+      { headers: { host: "127.0.0.1:3000", origin: "http://127.0.0.1:3000" } },
+      "http://127.0.0.1:3000",
+      "127.0.0.1:3000"
+    ),
+    true
+  );
+  assert.equal(
+    isTrustedLocalRequest(
+      { headers: { host: "evil.test:3000", origin: "http://127.0.0.1:3000" } },
+      "http://127.0.0.1:3000",
+      "127.0.0.1:3000"
+    ),
+    false
+  );
+  assert.equal(
+    isTrustedLocalRequest(
+      { headers: { host: "127.0.0.1:3000", origin: "https://evil.test" } },
+      "http://127.0.0.1:3000",
+      "127.0.0.1:3000"
+    ),
+    false
+  );
+});
+test("logout rejects invalid CSRF tokens for existing sessions", () => {
+  const store = createSessionStore("secret"); const sessionResponse = fakeResponse();
+  store.getOrCreateSession({ headers: {} }, sessionResponse);
+  const response = fakeHttpResponse();
+  const routes = createRoutes({
+    appBaseUrl: "http://127.0.0.1:3000",
+    rootDirectory: path.resolve(__dirname, ".."),
+    sessionStore: store,
+    readJsonRequest: async () => ({}),
+    redirect() {},
+    sendJson(response, status, body) {
+      response.writeHead(status, { "Content-Type": "application/json" });
+      response.end(JSON.stringify(body));
+    }
+  });
+
+  routes.logout({
+    headers: {
+      cookie: sessionResponse.header.split(";")[0],
+      "x-csrf-token": "wrong"
+    }
+  }, response);
+
+  assert.equal(response.statusCode, 403);
+  assert.match(response.body, /Invalid security token/);
+});
 test("GitHub books restore bibliography pages and references", async () => {
   const files = {
     "book/_config.yml": "title: Book\nbibtex_bibfiles:\n  - references.bib\n",
@@ -107,3 +191,16 @@ test("GitHub books restore bibliography pages and references", async () => {
 });
 
 function fakeResponse() { return { header: "", setHeader(name, value) { if (name === "Set-Cookie") this.header = value; } }; }
+function fakeHttpResponse() {
+  return {
+    body: "",
+    headers: {},
+    statusCode: 0,
+    end(value = "") { this.body += value; },
+    setHeader(name, value) { this.headers[name] = value; },
+    writeHead(statusCode, headers = {}) {
+      this.statusCode = statusCode;
+      this.headers = { ...this.headers, ...headers };
+    }
+  };
+}

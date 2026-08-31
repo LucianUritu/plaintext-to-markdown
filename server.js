@@ -1,4 +1,5 @@
 const http = require("node:http");
+const crypto = require("node:crypto");
 const { loadEnvFile, removeTrailingSlash } = require("./server/env");
 const {
   createStaticFileServer,
@@ -16,11 +17,13 @@ function createAppServer(options = {}) {
   loadEnvFile(rootDirectory);
 
   const port = Number(options.port || process.env.PORT || 3000);
+  const host = options.host || process.env.HOST || "127.0.0.1";
   const appBaseUrl = removeTrailingSlash(
-    options.appBaseUrl || process.env.APP_BASE_URL || "http://localhost:" + port
+    options.appBaseUrl || process.env.APP_BASE_URL || "http://" + host + ":" + port
   );
-const sessionSecret =
-    process.env.SESSION_SECRET || "development-session-secret-change-me";
+  const appOrigin = new URL(appBaseUrl).origin;
+  const allowedHost = new URL(appBaseUrl).host.toLowerCase();
+  const sessionSecret = createSessionSecret(options.sessionSecret);
   const gitHubClientId =
     options.gitHubClientId || process.env.GITHUB_CLIENT_ID;
 
@@ -56,6 +59,13 @@ router.get("/auth/github/device/status", routes.getGitHubDeviceLoginStatus);
     try {
       const url = new URL(request.url, appBaseUrl);
 
+      if (!isTrustedLocalRequest(request, appOrigin, allowedHost)) {
+        sendJson(response, 403, {
+          error: "Forbidden"
+        });
+        return;
+      }
+
       if (await router.handle(request, response, url)) {
         return;
       }
@@ -71,6 +81,7 @@ router.get("/auth/github/device/status", routes.getGitHubDeviceLoginStatus);
 
   return {
     appBaseUrl,
+    host,
     port,
     server
   };
@@ -81,7 +92,7 @@ function startAppServer(options = {}) {
 
   return new Promise(function (resolve, reject) {
     appServer.server.once("error", reject);
-    appServer.server.listen(appServer.port, function () {
+    appServer.server.listen(appServer.port, appServer.host, function () {
       appServer.server.off("error", reject);
       console.log("Book platform running at " + appServer.appBaseUrl);
       resolve(appServer);
@@ -96,7 +107,35 @@ if (require.main === module) {
   });
 }
 
+function createSessionSecret(configuredSecret) {
+  const secret = configuredSecret || process.env.SESSION_SECRET;
+
+  if (secret) {
+    return secret;
+  }
+
+  return crypto.randomBytes(32).toString("hex");
+}
+
+function isTrustedLocalRequest(request, appOrigin, allowedHost) {
+  const requestHost = String(request.headers.host || "").toLowerCase();
+
+  if (requestHost !== allowedHost) {
+    return false;
+  }
+
+  const origin = request.headers.origin;
+
+  if (origin && removeTrailingSlash(origin) !== appOrigin) {
+    return false;
+  }
+
+  return true;
+}
+
 module.exports = {
   createAppServer,
+  createSessionSecret,
+  isTrustedLocalRequest,
   startAppServer
 };

@@ -18,6 +18,15 @@ test("generator creates the core TeachBooks files", async () => {
   const paths = (await filesFor(book())).map((file) => file.path);
   assert.deepEqual(paths.slice(0, 5), ["requirements.txt", ".github/workflows/call-deploy-book.yml", "book/_config.yml", "book/_toc.yml", "book/intro.md"]);
 });
+test("requirements pin generated build dependencies", async () => {
+  const requirements = byPath(await filesFor(book()), "requirements.txt").content;
+  assert.match(requirements, /teachbooks==0\.2\.4/);
+  assert.match(requirements, /TeachBooks-Favourites@ad0f301f83effb9322a5460f444d88878b30a75b/);
+});
+test("workflow does not inherit repository secrets", async () => {
+  const workflow = byPath(await filesFor(book()), ".github/workflows/call-deploy-book.yml").content;
+  assert.doesNotMatch(workflow, /secrets:\s+inherit/);
+});
 test("config uses publishing coordinates", async () => {
   const files = await filesFor(book(), { owner: "alice", repo: "manual", branch: "draft" });
   const config = byPath(files, "book/_config.yml").content;

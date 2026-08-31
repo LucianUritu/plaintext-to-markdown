@@ -1,3 +1,5 @@
+let csrfToken = "";
+
 export async function loadGitHubAuthState() {
   const response = await fetch("/api/me");
 
@@ -5,7 +7,9 @@ export async function loadGitHubAuthState() {
     throw await createApiError(response, "GitHub auth is not available.");
   }
 
-  return response.json();
+  const authState = await response.json();
+  rememberCsrfToken(authState);
+  return authState;
 }
 
 export async function loadGitHubBooks() {
@@ -37,7 +41,8 @@ export async function loadGitHubBook(book) {
 
 export async function logoutFromGitHub() {
   await fetch("/auth/logout", {
-    method: "POST"
+    method: "POST",
+    headers: createCsrfHeaders()
   });
 }
 
@@ -45,7 +50,8 @@ export async function publishBookPreview(payload) {
   const response = await fetch("/api/publish-book", {
     method: "POST",
     headers: {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      ...createCsrfHeaders()
     },
     body: JSON.stringify(payload)
   });
@@ -60,6 +66,20 @@ export async function publishBookPreview(payload) {
   }
 
   return result;
+}
+
+function rememberCsrfToken(body) {
+  if (body && typeof body.csrfToken === "string") {
+    csrfToken = body.csrfToken;
+  }
+}
+
+function createCsrfHeaders() {
+  return csrfToken
+    ? {
+        "X-CSRF-Token": csrfToken
+      }
+    : {};
 }
 
 export async function loadPublishWorkflowStatus(publishResult) {

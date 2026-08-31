@@ -12,14 +12,26 @@ const contentTypes = {
   ".svg": "image/svg+xml"
 };
 
+const defaultStaticAllowlist = [
+  "index.html",
+  "style.css",
+  "assets/",
+  "js/"
+];
+
 function createStaticFileServer(rootDirectory) {
   return function serveStaticFile(urlPath, response) {
     const cleanPath = urlPath === "/" ? "/index.html" : urlPath;
     const decodedPath = decodeURIComponent(cleanPath);
     const filePath = path.normalize(path.join(rootDirectory, decodedPath));
     const relativePath = path.relative(rootDirectory, filePath);
+    const normalizedRelativePath = relativePath.replace(/\\/g, "/");
 
-    if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+    if (
+      relativePath.startsWith("..") ||
+      path.isAbsolute(relativePath) ||
+      !isAllowedStaticPath(normalizedRelativePath)
+    ) {
       response.writeHead(403);
       response.end("Forbidden");
       return;
@@ -32,9 +44,9 @@ function createStaticFileServer(rootDirectory) {
         return;
       }
 
-      response.writeHead(200, {
+      response.writeHead(200, withSecurityHeaders({
         "Content-Type": contentTypes[path.extname(filePath)] || "application/octet-stream"
-      });
+      }));
       response.end(contents);
     });
   };
@@ -66,22 +78,55 @@ function readJsonRequest(request) {
 }
 
 function redirect(response, location) {
-  response.writeHead(302, {
+  response.writeHead(302, withSecurityHeaders({
     Location: location
-  });
+  }));
   response.end();
 }
 
 function sendJson(response, status, body) {
-  response.writeHead(status, {
+  response.writeHead(status, withSecurityHeaders({
     "Content-Type": "application/json; charset=utf-8"
-  });
+  }));
   response.end(JSON.stringify(body));
+}
+
+function sendForbidden(response, message = "Forbidden") {
+  response.writeHead(403, withSecurityHeaders({
+    "Content-Type": "text/plain; charset=utf-8"
+  }));
+  response.end(message);
+}
+
+function isAllowedStaticPath(relativePath) {
+  if (!relativePath || relativePath.split("/").some((part) => part.startsWith("."))) {
+    return false;
+  }
+
+  return defaultStaticAllowlist.some(function (allowedPath) {
+    return allowedPath.endsWith("/")
+      ? relativePath.startsWith(allowedPath)
+      : relativePath === allowedPath;
+  });
+}
+
+function withSecurityHeaders(headers = {}) {
+  return {
+    "Content-Security-Policy":
+      "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'",
+    "Referrer-Policy": "no-referrer",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    ...headers
+  };
 }
 
 module.exports = {
   createStaticFileServer,
+  isAllowedStaticPath,
   readJsonRequest,
   redirect,
-  sendJson
+  sendForbidden,
+  sendJson,
+  withSecurityHeaders
 };

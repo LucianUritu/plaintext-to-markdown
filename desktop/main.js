@@ -10,13 +10,15 @@ let localServer;
 
 async function createMainWindow() {
   const port = Number(process.env.PORT || process.env.DESKTOP_PORT || DEFAULT_DESKTOP_PORT);
+  const host = process.env.HOST || "127.0.0.1";
   const appBaseUrl =
-    process.env.APP_BASE_URL || "http://localhost:" + port;
+    process.env.APP_BASE_URL || "http://" + host + ":" + port;
   const desktopConfig = loadDesktopConfig();
 
   localServer = await startAppServer({
     appBaseUrl,
     gitHubClientId: desktopConfig.githubClientId,
+    host,
     port,
     rootDirectory: path.join(__dirname, "..")
   });

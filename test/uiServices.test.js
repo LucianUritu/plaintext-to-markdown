@@ -44,10 +44,12 @@ test("book URLs encode owner, repo, and branch", async () => {
 });
 test("publish preview sends JSON", async () => {
   let options;
-  await withFetch((url, value) => { options = value; return { ok: true, json: async () => ({ ok: true }) }; }, async () => {
+  await withFetch((url, value) => { options = value; return { ok: true, json: async () => ({ csrfToken: "token", ok: true }) }; }, async () => {
+    await (await githubApi).loadGitHubAuthState();
     await (await githubApi).publishBookPreview({ title: "Book" });
   });
   assert.equal(options.method, "POST");
+  assert.equal(options.headers["X-CSRF-Token"], "token");
   assert.equal(options.body, '{"title":"Book"}');
 });
 test("publish preview exposes API error codes", async () => withFetch({ ok: false, status: 409, json: async () => ({ error: "Exists", code: "REPOSITORY_EXISTS" }) }, async () => {
@@ -55,8 +57,12 @@ test("publish preview exposes API error codes", async () => withFetch({ ok: fals
 }));
 test("logout uses POST", async () => {
   let options;
-  await withFetch((url, value) => { options = value; return { ok: true }; }, async () => (await githubApi).logoutFromGitHub());
+  await withFetch((url, value) => { options = value; return { ok: true, json: async () => ({ csrfToken: "logout-token" }) }; }, async () => {
+    await (await githubApi).loadGitHubAuthState();
+    await (await githubApi).logoutFromGitHub();
+  });
   assert.equal(options.method, "POST");
+  assert.equal(options.headers["X-CSRF-Token"], "logout-token");
 });
 
 async function withFetch(responseOrFactory, action) {

@@ -21,6 +21,7 @@ function createSessionStore(sessionSecret, options = {}) {
 
     const sessionId = crypto.randomBytes(32).toString("hex");
     const session = {
+      csrfToken: crypto.randomBytes(32).toString("hex"),
       createdAt: Date.now(),
       expiresAt: Date.now() + sessionMaxAgeMilliseconds,
       id: sessionId

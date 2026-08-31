@@ -65,8 +65,8 @@ export function generateTeachBooksFiles(book, options = {}) {
 }
 
 function generateRequirements() {
-  return `teachbooks
-git+https://github.com/TeachBooks/TeachBooks-Favourites
+  return `teachbooks==0.2.4
+git+https://github.com/TeachBooks/TeachBooks-Favourites@ad0f301f83effb9322a5460f444d88878b30a75b
 `;
 }
 
@@ -90,7 +90,6 @@ concurrency:
 jobs:
   call-workflow:
     uses: TeachBooks/deploy-book-workflow/.github/workflows/deploy-book.yml@v1
-    secrets: inherit
     permissions:
       contents: read
       pages: write
@@ -120,13 +119,13 @@ sphinx:
     - teachbooks_favourites
   config:
     language: en
-    html_baseurl: "https://${owner}.github.io/${repo}"
+    html_baseurl: ${quoteYaml("https://" + owner + ".github.io/" + repo)}
     html_theme_options:
       logo:
         text: ${quoteYaml(title)}
-      repository_url: "https://github.com/${owner}/${repo}"
+      repository_url: ${quoteYaml("https://github.com/" + owner + "/" + repo)}
       path_to_docs: "book"
-      repository_branch: "${branch}"
+      repository_branch: ${quoteYaml(branch)}
       use_edit_page_button: true
       use_repository_button: true
       use_issues_button: true
