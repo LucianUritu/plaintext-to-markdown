@@ -924,6 +924,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     saveActiveEditorContent();
     elements.markBookDoneButton.disabled = true;
+    elements.markBookDoneButton.classList.add("is-loading");
     elements.markBookDoneButton.textContent = "Sending...";
     setStatus("Sending completion email...", 0);
 
@@ -940,6 +941,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     } finally {
       elements.markBookDoneButton.disabled = false;
+      elements.markBookDoneButton.classList.remove("is-loading");
       elements.markBookDoneButton.textContent = "Done";
     }
   });

@@ -400,6 +400,7 @@ pre {
 
 .book-actions {
   display: flex;
+  flex: 1 1 680px;
   gap: 10px;
   flex-wrap: wrap;
 }
@@ -414,15 +415,18 @@ pre {
 }
 
 .book-actions .done-book-action {
-  background: #2457a6;
+  margin-left: auto;
+  border: 1px solid #9fcbb8;
+  background: #edf7f2;
+  color: #0f6248;
 }
 
 .book-actions .done-book-action:hover {
-  background: #1b4587;
+  background: #dff0e8;
+  color: #0d513c;
 }
 
 .book-actions .close-book-action {
-  margin-left: auto;
   border: 1px solid #f2b8b5;
   background: #fff1f0;
   color: #9f312a;
@@ -1503,6 +1507,10 @@ pre {
   .reference-form {
     grid-template-columns: 1fr;
   }
+
+  .book-actions .done-book-action {
+    margin-left: 0;
+  }
 }
 
 /* Bookstudio interface */
@@ -1562,6 +1570,45 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent) !importa
 
 .book-header { padding: 28px; }
 .book-title-input, .chapter-title-input { font-family: Georgia, serif; color: var(--ink); }
+.book-actions {
+  align-items: center;
+  min-width: 0;
+}
+.book-actions .done-book-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  border: 1px solid #9ec7b4;
+  background: #eef7f2;
+  color: var(--accent-dark);
+  white-space: nowrap;
+}
+.book-actions .done-book-action::before {
+  content: "";
+  width: 7px;
+  height: 12px;
+  border: solid currentColor;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg) translateY(-1px);
+}
+.book-actions .done-book-action:hover,
+.book-actions .done-book-action:focus-visible {
+  background: #dfeee7;
+  color: #0d4634;
+}
+.book-actions .done-book-action.is-loading::before {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(15, 81, 58, .24);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  transform: none;
+  animation: spin .8s linear infinite;
+}
+.book-actions .close-book-action {
+  margin-left: 0;
+}
 .chapter-list { grid-template-columns: repeat(auto-fill, minmax(245px, 1fr)); gap: 14px; }
 .chapter-card { min-height: 118px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); box-shadow: none; text-align: left; }
 .chapter-card:hover { border-color: #9eb9ab; background: #f9fcfa; box-shadow: var(--shadow); }
