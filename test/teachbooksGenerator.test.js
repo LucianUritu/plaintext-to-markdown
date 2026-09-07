@@ -58,6 +58,19 @@ test("empty introductions receive useful fallback content", async () => {
   const intro = byPath(await filesFor(book({ introduction: { title: "Start", content: "" } })), "book/intro.md").content;
   assert.match(intro, /Welcome to \*\*Test Book\*\*/);
 });
+test("introduction H1 comes from the first plaintext line", async () => {
+  const intro = byPath(await filesFor(book({
+    introduction: {
+      title: "Introduction",
+      content: "SYNOPSIS OF THE METAMORPHOSIS\n\nThe Metamorphosis is a classic."
+    }
+  })), "book/intro.md").content;
+
+  assert.equal(
+    intro,
+    "# SYNOPSIS OF THE METAMORPHOSIS\n\nThe Metamorphosis is a classic.\n"
+  );
+});
 test("safe imported source paths are preserved", async () => {
   const files = await filesFor(book({ introduction: { title: "Intro", content: "x", sourcePath: "pages/start.md" }, chapters: [{ title: "C", content: "x", sourcePath: "topics/c.md" }] }));
   assert.ok(byPath(files, "book/pages/start.md"));

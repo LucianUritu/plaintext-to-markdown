@@ -286,7 +286,7 @@ function generateIntro(book) {
   const introTitle = introduction.title || "Introduction";
   const introContent = introduction.content || "";
 
-  const markdown = convertBodyTextToMarkdown(introContent);
+  const markdown = plainTextToMarkdown(introContent);
 
   if (markdown.length === 0) {
     return `# ${introTitle}
@@ -297,10 +297,7 @@ Use the table of contents on the left to navigate through the chapters.
 `;
   }
 
-  return `# ${introTitle}
-
-${markdown}
-`;
+  return markdown + "\n";
 }
 
 function generateChapterMarkdown(chapter, index, bibliography) {
