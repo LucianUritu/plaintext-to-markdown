@@ -207,6 +207,51 @@ test("book done route sends completion notifications", async () => {
     bookTitle: "Library Guide"
   });
 });
+test("version branches route accepts trailing slash prefixes", async () => {
+  const store = createSessionStore("secret"); const sessionResponse = fakeResponse();
+  const session = store.getOrCreateSession({ headers: {} }, sessionResponse);
+  session.githubAccessToken = "token";
+
+  const originalFetch = global.fetch;
+  global.fetch = async (url) => {
+    assert.match(url, /\/repos\/alice\/book\/branches\?per_page=100/);
+    return new Response(JSON.stringify([
+      { name: "version/test", commit: { sha: "abc" } },
+      { name: "main", commit: { sha: "def" } }
+    ]), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    });
+  };
+
+  try {
+    const response = fakeHttpResponse();
+    const routes = createRoutes({
+      appBaseUrl: "http://127.0.0.1:3000",
+      rootDirectory: path.resolve(__dirname, ".."),
+      sessionStore: store,
+      readJsonRequest: async () => ({}),
+      redirect() {},
+      sendJson(response, status, body) {
+        response.writeHead(status, { "Content-Type": "application/json" });
+        response.end(JSON.stringify(body));
+      }
+    });
+
+    await routes.getVersionBranches({
+      headers: {
+        cookie: sessionResponse.header.split(";")[0]
+      }
+    }, response, new URL("http://127.0.0.1:3000/api/github/branches?owner=alice&repo=book&prefix=version/&per_page=100"));
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(JSON.parse(response.body).branches.map((branch) => branch.name), [
+      "version/test"
+    ]);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
 test("GitHub books restore bibliography pages and references", async () => {
   const files = {
     "book/_config.yml": "title: Book\nbibtex_bibfiles:\n  - references.bib\n",

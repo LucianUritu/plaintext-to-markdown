@@ -435,7 +435,7 @@ function createRoutes({
       return;
     }
 
-    if (!isSafeGitHubOwnerOrRepo(owner) || !isSafeGitHubOwnerOrRepo(repo) || !isSafeGitHubBranch(prefix)) {
+    if (!isSafeGitHubOwnerOrRepo(owner) || !isSafeGitHubOwnerOrRepo(repo) || !isSafeGitHubBranchPrefix(prefix)) {
       sendJson(response, 400, {
         error: "Invalid GitHub repository or branch prefix."
       });
@@ -699,6 +699,19 @@ function isSafeGitHubBranch(value) {
     !branch.endsWith(".") &&
     !branch.endsWith("/") &&
     !branch.endsWith(".lock")
+  );
+}
+
+function isSafeGitHubBranchPrefix(value) {
+  const prefix = String(value || "");
+
+  return (
+    prefix.length > 0 &&
+    prefix.length <= 255 &&
+    !/[\x00-\x20~^:?*\[\\\]]/.test(prefix) &&
+    !prefix.includes("..") &&
+    !prefix.endsWith(".") &&
+    !prefix.endsWith(".lock")
   );
 }
 

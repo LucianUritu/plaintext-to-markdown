@@ -27,6 +27,7 @@ class PublishService {
     let targetBranch = branch;
     let createdRepository = null;
     let publishFiles = files;
+    let primaryBranch = "main";
 
     if (!targetOwner || !targetRepo) {
       const currentUser = await this.githubClient.getCurrentUser();
@@ -56,6 +57,7 @@ class PublishService {
       if (existingRepository) {
         targetOwner = currentUser.user.login;
         targetRepo = repositoryName;
+        primaryBranch = existingRepository.default_branch || primaryBranch;
       } else {
         createdRepository = await this.githubClient.createRepository({
           name: repositoryName,
@@ -76,6 +78,7 @@ class PublishService {
 
         targetOwner = createdRepository.owner.login;
         targetRepo = createdRepository.name;
+        primaryBranch = createdRepository.default_branch || primaryBranch;
       }
     }
 
@@ -121,6 +124,31 @@ class PublishService {
       owner: targetOwner,
       repo: targetRepo
     });
+
+    if (book && isVersionBranch(targetBranch)) {
+      primaryBranch = await this.resolvePrimaryBranch({
+        owner: targetOwner,
+        repo: targetRepo,
+        fallbackBranch: primaryBranch
+      });
+
+      if (primaryBranch && primaryBranch !== targetBranch) {
+        const generator = await this.loadTeachBooksGenerator();
+        const primaryFiles = generator.generateTeachBooksFiles(book, {
+          owner: targetOwner,
+          repo: targetRepo,
+          branch: primaryBranch
+        });
+
+        await this.githubClient.publishFiles({
+          owner: targetOwner,
+          repo: targetRepo,
+          branch: primaryBranch,
+          files: primaryFiles,
+          commitMessage: "Update primary TeachBooks preview"
+        });
+      }
+    }
 
     const result = await this.githubClient.publishFiles({
       owner: targetOwner,
@@ -168,6 +196,14 @@ class PublishService {
     }
 
     return this.generatorPromise;
+  }
+
+  async resolvePrimaryBranch({ owner, repo, fallbackBranch }) {
+    if (typeof this.githubClient.getDefaultBranch === "function") {
+      return this.githubClient.getDefaultBranch({ owner, repo });
+    }
+
+    return fallbackBranch || "main";
   }
 }
 

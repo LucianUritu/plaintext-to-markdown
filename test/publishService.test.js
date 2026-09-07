@@ -69,3 +69,34 @@ test("book models are converted by the TeachBooks generator", async () => {
   const files = github.calls.find(([name]) => name === "publishFiles")[1].files;
   assert.ok(files.some((file) => file.path === "book/_config.yml"));
 });
+test("version publishing seeds the primary branch before the version branch", async () => {
+  const github = client({
+    async getDefaultBranch() { return "main"; }
+  });
+
+  await service(github).publishBook({
+    owner: "alice",
+    repo: "book",
+    branch: "version/test",
+    book: {
+      title: "Book",
+      introduction: { title: "Intro", content: "Welcome" },
+      chapters: [{ title: "One", content: "Body" }],
+      images: []
+    }
+  });
+
+  const publishCalls = github.calls.filter(([name]) => name === "publishFiles");
+
+  assert.equal(publishCalls.length, 2);
+  assert.equal(publishCalls[0][1].branch, "main");
+  assert.equal(publishCalls[1][1].branch, "version/test");
+  assert.match(
+    publishCalls[0][1].files.find((file) => file.path === "book/_config.yml").content,
+    /repository_branch: "main"/
+  );
+  assert.match(
+    publishCalls[1][1].files.find((file) => file.path === "book/_config.yml").content,
+    /repository_branch: "version\/test"/
+  );
+});
