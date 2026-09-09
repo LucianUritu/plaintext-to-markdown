@@ -10,6 +10,7 @@ function client(overrides = {}) {
     async getCurrentUser() { return { ok: true, user: { login: "alice" } }; },
     async getRepository() { return null; },
     async createRepository(args) { calls.push(["createRepository", args]); return { name: args.name, owner: { login: "alice" } }; },
+    async inviteRepositoryCollaborator(args) { calls.push(["inviteRepositoryCollaborator", args]); return { status: "invited" }; },
     async getBranch() { return null; },
     async ensurePagesSite(args) { calls.push(["ensurePagesSite", args]); },
     async publishFiles(args) { calls.push(["publishFiles", args]); return { noChanges: false, commit: { sha: "abc", html_url: "https://commit" } }; },
@@ -48,6 +49,25 @@ test("new publishing creates a repository", async () => {
   assert.equal(result.repository.repo, "my-great-book");
   assert.equal(result.repository.created, true);
   assert.equal(github.calls.find(([name]) => name === "createRepository")[1].isPrivate, true);
+});
+test("new publishing invites LucianUritu as a maintainer", async () => {
+  const github = client();
+  const result = await service(github).publishBook({ branch: "main", files: [{ path: "a" }], bookTitle: "My Great Book" });
+  const invitation = github.calls.find(([name]) => name === "inviteRepositoryCollaborator");
+
+  assert.deepEqual(invitation[1], {
+    owner: "alice",
+    repo: "my-great-book",
+    username: "LucianUritu",
+    permission: "maintain"
+  });
+  assert.deepEqual(result.collaboratorInvitations, [
+    {
+      username: "LucianUritu",
+      permission: "maintain",
+      status: "invited"
+    }
+  ]);
 });
 test("existing generated repository requires overwrite confirmation", async () => {
   const github = client({ async getRepository() { return { default_branch: "main" }; } });

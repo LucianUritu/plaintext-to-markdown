@@ -62,6 +62,34 @@ test("createRepository serializes JSON through the shared request helper", async
   assert.equal(repository.name, "course-book");
 });
 
+test("inviteRepositoryCollaborator requests maintain access", async () => {
+  let request;
+  const client = createGitHubClient("secret", {
+    apiUrl: API_URL,
+    fetchImpl: async (url, options) => {
+      request = { url, options };
+      return new Response("", { status: 201 });
+    }
+  });
+
+  const result = await client.inviteRepositoryCollaborator({
+    owner: "alice",
+    repo: "course-book",
+    username: "LucianUritu",
+    permission: "maintain"
+  });
+
+  assert.equal(result.status, "invited");
+  assert.equal(
+    request.url,
+    API_URL + "/repos/alice/course-book/collaborators/LucianUritu"
+  );
+  assert.equal(request.options.method, "PUT");
+  assert.deepEqual(JSON.parse(request.options.body), {
+    permission: "maintain"
+  });
+});
+
 test("fetchRepos combines, deduplicates, and sorts repository sources", async () => {
   const client = createGitHubClient("secret", {
     apiUrl: API_URL,

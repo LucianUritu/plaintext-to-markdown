@@ -2,12 +2,19 @@ const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const { slugifyRepositoryName } = require("./githubClient");
 const { PagesUrlResolver } = require("./publishingTargets");
+const { RepositoryCollaboratorService } = require("./repositoryCollaboratorService");
 
 class PublishService {
-  constructor({ githubClient, rootDirectory, pagesUrlResolver = new PagesUrlResolver() }) {
+  constructor({
+    githubClient,
+    rootDirectory,
+    pagesUrlResolver = new PagesUrlResolver(),
+    collaboratorService = new RepositoryCollaboratorService({ githubClient })
+  }) {
     this.githubClient = githubClient;
     this.rootDirectory = rootDirectory;
     this.pagesUrlResolver = pagesUrlResolver;
+    this.collaboratorService = collaboratorService;
     this.generatorPromise = null;
   }
 
@@ -26,6 +33,7 @@ class PublishService {
     let targetRepo = repo;
     let targetBranch = branch;
     let createdRepository = null;
+    let collaboratorInvitations = [];
     let publishFiles = files;
     let primaryBranch = "main";
 
@@ -79,6 +87,11 @@ class PublishService {
         targetOwner = createdRepository.owner.login;
         targetRepo = createdRepository.name;
         primaryBranch = createdRepository.default_branch || primaryBranch;
+        collaboratorInvitations =
+          await this.collaboratorService.inviteDefaultCollaborators({
+            owner: targetOwner,
+            repo: targetRepo
+          });
       }
     }
 
@@ -182,7 +195,8 @@ class PublishService {
         repo: targetRepo,
         branch: targetBranch,
         created: Boolean(createdRepository)
-      }
+      },
+      collaboratorInvitations
     };
   }
 

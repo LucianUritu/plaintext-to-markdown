@@ -20,6 +20,7 @@ export class PublishWorkflow {
     askVersionLabel,
     publishProgress,
     publishMessagePanel,
+    beforeValidate,
     setStatus,
     showPublishResult
   }) {
@@ -32,12 +33,17 @@ export class PublishWorkflow {
     this.askVersionLabel = askVersionLabel;
     this.publishProgress = publishProgress;
     this.publishMessagePanel = publishMessagePanel;
+    this.beforeValidate = beforeValidate;
     this.setStatus = setStatus;
     this.showPublishResult = showPublishResult;
   }
 
   async publish() {
     this.saveActiveEditorContent();
+
+    if (typeof this.beforeValidate === "function") {
+      await this.beforeValidate();
+    }
 
     const currentBook = this.getCurrentBook();
 
@@ -114,7 +120,10 @@ export class PublishWorkflow {
       this.publishProgress.hideAfter(30000);
       this.showPublishResult(
         result.pagesUrl,
-        "Version " + versionLabel + " published. The TeachBooks book preview is ready."
+        createPublishSuccessMessage(
+          "Version " + versionLabel + " published. The TeachBooks book preview is ready.",
+          result
+        )
       );
     } catch (error) {
       if (error.code === "REPOSITORY_EXISTS") {
@@ -210,7 +219,10 @@ export class PublishWorkflow {
       this.publishProgress.hideAfter(30000);
       this.showPublishResult(
         result.pagesUrl,
-        "Files updated successfully. The real TeachBooks book preview is ready."
+        createPublishSuccessMessage(
+          "Files updated successfully. The real TeachBooks book preview is ready.",
+          result
+        )
       );
     } catch (overwriteError) {
       console.error(overwriteError);
@@ -326,6 +338,28 @@ function formatWorkflowStatus(status) {
   }
 
   return status || "starting";
+}
+
+function createPublishSuccessMessage(message, result) {
+  const invitations = Array.isArray(result.collaboratorInvitations)
+    ? result.collaboratorInvitations
+    : [];
+  const maintainerInvitation = invitations.find(function (invitation) {
+    return invitation.username === "LucianUritu";
+  });
+
+  if (!maintainerInvitation) {
+    return message;
+  }
+
+  if (
+    maintainerInvitation.status === "invited" ||
+    maintainerInvitation.status === "already_added"
+  ) {
+    return message + " LucianUritu has maintain access.";
+  }
+
+  return message + " GitHub did not add LucianUritu automatically.";
 }
 
 function delay(milliseconds) {

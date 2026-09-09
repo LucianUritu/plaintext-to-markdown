@@ -112,6 +112,44 @@ function createGitHubClient(
     throw new Error("Could not create GitHub repository.\n\n" + errorText);
   }
 
+  async function inviteRepositoryCollaborator({
+    owner,
+    repo,
+    username,
+    permission
+  }) {
+    const response = await request(
+      createRepositoryPath(owner, repo) +
+        "/collaborators/" +
+        encodeURIComponent(username),
+      {
+        method: "PUT",
+        json: {
+          permission
+        }
+      }
+    );
+
+    if (response.status === 201) {
+      return {
+        status: "invited"
+      };
+    }
+
+    if (response.status === 204) {
+      return {
+        status: "already_added"
+      };
+    }
+
+    throw new Error(
+      "Could not invite GitHub collaborator " +
+        username +
+        ".\n\n" +
+        (await readGitHubError(response))
+    );
+  }
+
   async function getRepository({ owner, repo }) {
     const response = await request(createRepositoryPath(owner, repo));
 
@@ -666,6 +704,7 @@ function createGitHubClient(
     getDefaultBranch,
     getCurrentUser,
     getRepository,
+    inviteRepositoryCollaborator,
     listBranches,
     publishFiles
   };

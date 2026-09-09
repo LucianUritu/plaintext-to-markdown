@@ -35,6 +35,7 @@ import { copyMarkdown, downloadMarkdown } from "./fileActions.js";
 import { loadGitHubBook, markBookDone } from "./githubApi.js";
 import { GitHubBooksController } from "./githubBooksController.js";
 import { setupImageHandler } from "./imageHandler.js";
+import { ImageRecoveryService } from "./imageRecoveryService.js";
 import { plainTextToMarkdown } from "./markdownConverter.js";
 import { markdownToHtml } from "./markdownRenderer.js";
 import { PlatformTour } from "./platformTour.js";
@@ -121,6 +122,11 @@ document.addEventListener("DOMContentLoaded", function () {
       setStatus(message);
     },
     onContentChanged: updateOutputs
+  });
+  const imageRecoveryService = new ImageRecoveryService({
+    loadBook: loadGitHubBook,
+    saveBook,
+    saveImage: upsertBookImage
   });
 
   function setStatus(message, duration) {
@@ -258,6 +264,24 @@ document.addEventListener("DOMContentLoaded", function () {
     updateWritingStats();
 
     saveActiveEditorContent();
+  }
+
+  async function recoverMissingImagesFromPublishedBook() {
+    const result = await imageRecoveryService.recover(currentBook);
+
+    if (result.recoveredCount === 0) {
+      return false;
+    }
+
+    loadImagePreviewUrlsFromCurrentBook();
+    updateOutputs();
+    setStatus(
+      result.recoveredCount +
+        " saved image" +
+        (result.recoveredCount === 1 ? "" : "s") +
+        " restored from GitHub."
+    );
+    return true;
   }
 
   function updateWritingStats() {
@@ -616,6 +640,8 @@ document.addEventListener("DOMContentLoaded", function () {
       setStatus("Introduction opened.");
     }
 
+    recoverMissingImagesFromPublishedBook();
+
     return true;
   }
 
@@ -662,6 +688,7 @@ document.addEventListener("DOMContentLoaded", function () {
     updateOutputs();
     versionHistoryPanel.hide();
     showView(elements.editorView, views);
+    recoverMissingImagesFromPublishedBook();
     return true;
   }
 
@@ -853,6 +880,7 @@ document.addEventListener("DOMContentLoaded", function () {
     },
     publishProgress,
     publishMessagePanel,
+    beforeValidate: recoverMissingImagesFromPublishedBook,
     setStatus,
     showPublishResult
   });
@@ -1084,6 +1112,7 @@ document.addEventListener("DOMContentLoaded", function () {
   navigation.start();
 
   githubBooksController.loadAuthState();
+  recoverMissingImagesFromPublishedBook();
 
   function navigateToBookView() {
     navigation.navigate({ view: "book" });
