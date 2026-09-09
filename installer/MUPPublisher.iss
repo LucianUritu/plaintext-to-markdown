@@ -17,6 +17,7 @@ AppUpdatesURL={#MyAppUrl}
 DefaultDirName={autopf}\MUP Publisher
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
+UsePreviousAppDir=no
 OutputDir=..\dist\installer
 OutputBaseFilename=MUP-Publisher-Setup-{#MyAppVersion}
 Compression=lzma2
@@ -35,6 +36,9 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+[InstallDelete]
+Type: files; Name: "{app}\PlaintextToMarkdown.exe"
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
