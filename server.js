@@ -54,6 +54,7 @@ router.get("/auth/github/device/status", routes.getGitHubDeviceLoginStatus);
   router.get("/api/publish-book/status", routes.getPublishWorkflowStatus);
   router.get("/api/github/branches", routes.getVersionBranches);
   router.get("/api/github/commit", routes.getCommitInfo);
+  router.get("/api/github/image", routes.getGitHubImage);
   router.getPrefix("/api/books/", routes.getGitHubBook);
 
   const server = http.createServer(async function (request, response) {

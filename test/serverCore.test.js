@@ -252,6 +252,61 @@ test("version branches route accepts trailing slash prefixes", async () => {
     global.fetch = originalFetch;
   }
 });
+test("GitHub image route restores published image data", async () => {
+  const store = createSessionStore("secret"); const sessionResponse = fakeResponse();
+  const session = store.getOrCreateSession({ headers: {} }, sessionResponse);
+  session.githubAccessToken = "token";
+
+  const requestedPaths = [];
+  const originalFetch = global.fetch;
+  global.fetch = async (url) => {
+    requestedPaths.push(url);
+
+    if (String(url).includes("/contents/book/images/cheatsheet.png?")) {
+      return new Response(JSON.stringify({
+        content: Buffer.from("image").toString("base64")
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+
+    return new Response(JSON.stringify({ message: "Not Found" }), {
+      status: 404,
+      headers: { "Content-Type": "application/json" }
+    });
+  };
+
+  try {
+    const response = fakeHttpResponse();
+    const routes = createRoutes({
+      appBaseUrl: "http://127.0.0.1:3000",
+      rootDirectory: path.resolve(__dirname, ".."),
+      sessionStore: store,
+      readJsonRequest: async () => ({}),
+      redirect() {},
+      sendJson(response, status, body) {
+        response.writeHead(status, { "Content-Type": "application/json" });
+        response.end(JSON.stringify(body));
+      }
+    });
+
+    await routes.getGitHubImage({
+      headers: {
+        cookie: sessionResponse.header.split(";")[0]
+      }
+    }, response, new URL("http://127.0.0.1:3000/api/github/image?owner=alice&repo=book&branch=main&path=images/cheatsheet.png"));
+
+    const body = JSON.parse(response.body);
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(body.image.path, "images/cheatsheet.png");
+    assert.equal(body.image.dataUrl, "data:image/png;base64," + Buffer.from("image").toString("base64"));
+    assert.ok(requestedPaths.some((url) => String(url).includes("/contents/book/images/cheatsheet.png?")));
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
 test("GitHub books restore bibliography pages and references", async () => {
   const files = {
     "book/_config.yml": "title: Book\nbibtex_bibfiles:\n  - references.bib\n",

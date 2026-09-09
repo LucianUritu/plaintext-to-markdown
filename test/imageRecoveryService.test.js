@@ -3,9 +3,23 @@ const assert = require("node:assert/strict");
 
 const modulePromise = import("../js/imageRecoveryService.js");
 
-function createService({ restoredImages = [], savedImages = [], savedBooks = [] } = {}) {
+function createService({
+  restoredImages = [],
+  restoredImageByPath = {},
+  savedImages = [],
+  savedBooks = []
+} = {}) {
   return modulePromise.then(({ ImageRecoveryService }) => {
     const service = new ImageRecoveryService({
+      async loadImage({ path }) {
+        if (!restoredImageByPath[path]) {
+          throw new Error("Missing image");
+        }
+
+        return {
+          image: restoredImageByPath[path]
+        };
+      },
       async loadBook(repository) {
         return {
           repository,
@@ -51,6 +65,29 @@ test("image recovery restores missing image data from the published book", async
   assert.equal(result.recoveredCount, 1);
   assert.equal(savedImages[0].image, restoredImage);
   assert.equal(savedBooks[0], book);
+});
+
+test("image recovery restores exact missing paths before reloading the full book", async () => {
+  const book = {
+    githubRepository: { owner: "alice", repo: "book", branch: "main" },
+    images: [],
+    chapters: [{ content: "![Diagram](images/cheatsheet.png)" }]
+  };
+  const restoredImage = {
+    path: "images/cheatsheet.png",
+    dataUrl: "data:image/png;base64,YQ=="
+  };
+  const { service, savedImages } = await createService({
+    restoredImageByPath: {
+      "images/cheatsheet.png": restoredImage
+    }
+  });
+
+  const result = await service.recover(book);
+
+  assert.equal(result.recoveredCount, 1);
+  assert.equal(savedImages[0].image.path, "images/cheatsheet.png");
+  assert.equal(savedImages[0].image.dataUrl, restoredImage.dataUrl);
 });
 
 test("image reference extractor finds missing local references only", async () => {

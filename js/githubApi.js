@@ -39,6 +39,22 @@ export async function loadGitHubBook(book) {
   return response.json();
 }
 
+export async function loadGitHubImage({ owner, repo, branch = "main", path }) {
+  const params = new URLSearchParams({
+    owner,
+    repo,
+    branch,
+    path
+  });
+  const response = await fetch("/api/github/image?" + params.toString());
+
+  if (!response.ok) {
+    throw await createApiError(response, "Could not restore the GitHub image.");
+  }
+
+  return response.json();
+}
+
 export async function logoutFromGitHub() {
   await fetch("/auth/logout", {
     method: "POST",

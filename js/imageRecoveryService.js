@@ -106,6 +106,7 @@ export class MarkdownImageReferenceExtractor {
 
 export class ImageRecoveryService {
   constructor({
+    loadImage,
     loadBook,
     saveImage,
     saveBook,
@@ -113,6 +114,7 @@ export class ImageRecoveryService {
     imageReferenceExtractor = new MarkdownImageReferenceExtractor(),
     logger = console
   } = {}) {
+    this.loadImage = loadImage;
     this.loadBook = loadBook;
     this.saveImage = saveImage;
     this.saveBook = saveBook;
@@ -137,7 +139,10 @@ export class ImageRecoveryService {
     this.isRecovering = true;
 
     try {
-      const restoredByPath = await this.loadRestoredImagesByPath(repository);
+      const restoredByPath = await this.loadRestoredImagesByPath(
+        repository,
+        missingImagePaths
+      );
       const recoveredCount = this.restoreImages(book, missingImagePaths, restoredByPath);
 
       if (recoveredCount > 0) {
@@ -153,17 +158,73 @@ export class ImageRecoveryService {
     }
   }
 
-  async loadRestoredImagesByPath(repository) {
+  async loadRestoredImagesByPath(repository, missingImagePaths) {
+    const restoredByPath = await this.loadImagesByPath(
+      repository,
+      missingImagePaths
+    );
+    const unresolvedPaths = missingImagePaths.filter(function (path) {
+      return !restoredByPath.has(path);
+    });
+
+    if (unresolvedPaths.length > 0) {
+      const reloadedByPath = await this.loadBookImagesByPath(repository);
+
+      unresolvedPaths.forEach(function (path) {
+        const image = reloadedByPath.get(path);
+
+        if (image) {
+          restoredByPath.set(path, image);
+        }
+      });
+    }
+
+    return restoredByPath;
+  }
+
+  async loadImagesByPath(repository, imagePaths) {
+    const restoredByPath = new Map();
+
+    if (typeof this.loadImage !== "function") {
+      return restoredByPath;
+    }
+
+    for (const path of imagePaths) {
+      try {
+        const result = await this.loadImage({ ...repository, path });
+        const image = result && result.image;
+
+        if (image && image.dataUrl) {
+          restoredByPath.set(path, {
+            ...image,
+            path
+          });
+        }
+      } catch (error) {
+        this.logger.error(error);
+      }
+    }
+
+    return restoredByPath;
+  }
+
+  async loadBookImagesByPath(repository) {
+    const restoredByPath = new Map();
+
+    if (typeof this.loadBook !== "function") {
+      return restoredByPath;
+    }
+
     const result = await this.loadBook(repository);
     const restoredImages = Array.isArray(result.book && result.book.images)
       ? result.book.images
       : [];
 
-    return new Map(
-      restoredImages.map(function (image) {
-        return [image.path, image];
-      })
-    );
+    restoredImages.forEach(function (image) {
+      restoredByPath.set(image.path, image);
+    });
+
+    return restoredByPath;
   }
 
   restoreImages(book, missingImagePaths, restoredByPath) {

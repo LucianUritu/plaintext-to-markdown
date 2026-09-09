@@ -281,6 +281,71 @@ function createRoutes({
     });
   }
 
+  async function getGitHubImage(request, response, url) {
+    const session = getRequiredGitHubSession(request, response);
+
+    if (!session) {
+      return;
+    }
+
+    const owner = cleanInput(url.searchParams.get("owner"));
+    const repo = cleanInput(url.searchParams.get("repo"));
+    const branch = cleanInput(url.searchParams.get("branch") || "main");
+    const imagePath = normalizeImagePath(url.searchParams.get("path"));
+
+    if (!owner || !repo || !branch || !imagePath) {
+      sendJson(response, 400, {
+        error: "Missing GitHub image details."
+      });
+      return;
+    }
+
+    if (
+      !isSafeGitHubOwnerOrRepo(owner) ||
+      !isSafeGitHubOwnerOrRepo(repo) ||
+      !isSafeGitHubBranch(branch)
+    ) {
+      sendJson(response, 400, {
+        error: "Invalid GitHub repository or branch."
+      });
+      return;
+    }
+
+    try {
+      const githubClient = createGitHubClient(session.githubAccessToken);
+      const imageFile = await fetchFirstGitHubImageFile(githubClient, {
+        owner,
+        repo,
+        branch,
+        imagePath
+      });
+
+      if (!imageFile || !imageFile.content) {
+        sendJson(response, 404, {
+          error: "Image was not found in the GitHub repository."
+        });
+        return;
+      }
+
+      sendJson(response, 200, {
+        image: {
+          path: imagePath,
+          name: imagePath.split("/").pop(),
+          type: inferImageMimeType(imagePath),
+          dataUrl:
+            "data:" +
+            inferImageMimeType(imagePath) +
+            ";base64," +
+            String(imageFile.content || "").replace(/\s/g, "")
+        }
+      });
+    } catch (error) {
+      sendJson(response, 502, {
+        error: error.message
+      });
+    }
+  }
+
   async function publishBookToGitHub(request, response) {
     const session = getRequiredGitHubSession(request, response);
 
@@ -667,6 +732,7 @@ function createRoutes({
     getGitHubDeviceLoginStatus,
     getGitHubBook,
     getGitHubBooks,
+    getGitHubImage,
     markBookDone,
     getPublishWorkflowStatus,
     getVersionBranches,
@@ -682,6 +748,63 @@ function cleanInput(value) {
 
 function normalizeRepositoryVisibility(value) {
   return value === "private" ? "private" : "public";
+}
+
+function normalizeImagePath(value) {
+  const imagePath = String(value || "").replace(/\\/g, "/").replace(/^book\//, "");
+
+  if (
+    !imagePath ||
+    imagePath.startsWith("/") ||
+    imagePath.includes("../") ||
+    imagePath.includes("..\\") ||
+    !/\.(gif|jpe?g|png|svg|webp)$/i.test(imagePath)
+  ) {
+    return "";
+  }
+
+  return imagePath;
+}
+
+async function fetchFirstGitHubImageFile(githubClient, {
+  owner,
+  repo,
+  branch,
+  imagePath
+}) {
+  const candidatePaths = [
+    "book/" + imagePath,
+    "book/chapters/" + imagePath
+  ];
+
+  for (const path of Array.from(new Set(candidatePaths))) {
+    const file = await githubClient.fetchRepositoryFile({
+      owner,
+      repo,
+      branch,
+      path
+    });
+
+    if (file) {
+      return file;
+    }
+  }
+
+  return null;
+}
+
+function inferImageMimeType(path) {
+  const extension = String(path || "").split(".").pop().toLowerCase();
+  const mimeTypes = {
+    gif: "image/gif",
+    jpeg: "image/jpeg",
+    jpg: "image/jpeg",
+    png: "image/png",
+    svg: "image/svg+xml",
+    webp: "image/webp"
+  };
+
+  return mimeTypes[extension] || "image/png";
 }
 
 function isSafeGitHubOwnerOrRepo(value) {

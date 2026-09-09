@@ -137,7 +137,7 @@ function renderMarkdownImage(line, imagePreviewUrls) {
 
   const altText = match[1];
   const markdownPath = match[2];
-  const previewUrl = imagePreviewUrls[markdownPath] || markdownPath;
+  const previewUrl = resolveImagePreviewUrl(markdownPath, imagePreviewUrls);
 
   return (
     "<figure>" +
@@ -151,4 +151,16 @@ function renderMarkdownImage(line, imagePreviewUrls) {
     "</figcaption>" +
     "</figure>"
   );
+}
+
+function resolveImagePreviewUrl(markdownPath, imagePreviewUrls) {
+  if (imagePreviewUrls[markdownPath]) {
+    return imagePreviewUrls[markdownPath];
+  }
+
+  const normalizedPath = String(markdownPath || "")
+    .replace(/\\/g, "/")
+    .replace(/^book\//, "");
+
+  return imagePreviewUrls[normalizedPath] || markdownPath;
 }

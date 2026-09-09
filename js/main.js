@@ -32,7 +32,7 @@ import { AppNavigation } from "./appNavigation.js";
 import { BibliographyController } from "./bibliographyController.js";
 import { exampleText } from "./examples.js";
 import { copyMarkdown, downloadMarkdown } from "./fileActions.js";
-import { loadGitHubBook, markBookDone } from "./githubApi.js";
+import { loadGitHubBook, loadGitHubImage, markBookDone } from "./githubApi.js";
 import { GitHubBooksController } from "./githubBooksController.js";
 import { setupImageHandler } from "./imageHandler.js";
 import { ImageRecoveryService } from "./imageRecoveryService.js";
@@ -124,6 +124,7 @@ document.addEventListener("DOMContentLoaded", function () {
     onContentChanged: updateOutputs
   });
   const imageRecoveryService = new ImageRecoveryService({
+    loadImage: loadGitHubImage,
     loadBook: loadGitHubBook,
     saveBook,
     saveImage: upsertBookImage
