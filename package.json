@@ -1,5 +1,6 @@
 {
-  "name": "plaintext-to-markdown",
+  "name": "mup-publisher",
+  "productName": "MUP Publisher",
   "version": "0.1.0",
   "description": "Desktop book authoring and publishing tool.",
   "private": true,
@@ -7,7 +8,7 @@
   "scripts": {
     "start": "node server.js",
     "desktop": "electron .",
-    "package": "electron-packager . PlaintextToMarkdown --platform=win32 --arch=x64 --icon=assets/MUP_logo_1.ico --out=dist/app --overwrite --prune=true --ignore=\"^/\\.env$\" --ignore=\"^/token$\" --ignore=\"^/dist($|/)\" --ignore=\"^/installer($|/)\" --ignore=\"^/test($|/)\" --ignore=\"^/\\.agents($|/)\" --ignore=\"^/\\.codex($|/)\" --ignore=\"^/\\.git($|/)\"",
+    "package": "electron-packager . \"MUP Publisher\" --platform=win32 --arch=x64 --icon=assets/MUP_logo_1.ico --out=dist/app --overwrite --prune=true --ignore=\"^/\\.env$\" --ignore=\"^/token$\" --ignore=\"^/dist($|/)\" --ignore=\"^/installer($|/)\" --ignore=\"^/test($|/)\" --ignore=\"^/\\.agents($|/)\" --ignore=\"^/\\.codex($|/)\" --ignore=\"^/\\.git($|/)\"",
     "dist": "npm run package",
     "setup": "npm run package && powershell -ExecutionPolicy Bypass -File installer/build-installer.ps1",
     "setup:installer": "powershell -ExecutionPolicy Bypass -File installer/build-installer.ps1",

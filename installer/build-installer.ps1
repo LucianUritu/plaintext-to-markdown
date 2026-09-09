@@ -1,8 +1,8 @@
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
-$issFile = Join-Path $PSScriptRoot "PlaintextToMarkdown.iss"
-$appExe = Join-Path $repoRoot "dist\app\PlaintextToMarkdown-win32-x64\PlaintextToMarkdown.exe"
+$issFile = Join-Path $PSScriptRoot "MUPPublisher.iss"
+$appExe = Join-Path $repoRoot "dist\app\MUP Publisher-win32-x64\MUP Publisher.exe"
 
 if (-not (Test-Path -LiteralPath $appExe)) {
     throw "Packaged app not found at '$appExe'. Run 'npm run package' first."

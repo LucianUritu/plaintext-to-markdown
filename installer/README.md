@@ -19,7 +19,7 @@ npm run setup
 This packages the Electron app and then creates:
 
 ```text
-dist\installer\PlaintextToMarkdownSetup-0.1.0.exe
+dist\installer\MUP-Publisher-Setup-0.1.0.exe
 ```
 
 The app executable and setup installer use `assets\MUP_logo_1.ico`, generated from `assets\MUP_logo_1.png`.

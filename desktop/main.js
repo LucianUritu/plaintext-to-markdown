@@ -28,7 +28,7 @@ async function createMainWindow() {
     height: 860,
     minWidth: 1000,
     minHeight: 700,
-    title: "Plaintext to Markdown",
+    title: "MUP Publisher",
     backgroundColor: "#f7f8fb",
     webPreferences: {
       contextIsolation: true,

@@ -1,9 +1,9 @@
-#define MyAppName "Plaintext To Markdown"
-#define MyAppExeName "PlaintextToMarkdown.exe"
+#define MyAppName "MUP Publisher"
+#define MyAppExeName "MUP Publisher.exe"
 #define MyAppVersion "0.1.0"
 #define MyAppPublisher "Maastricht University Press"
 #define MyAppUrl "https://maastrichtuniversitypress.nl"
-#define SourceDir "..\dist\app\PlaintextToMarkdown-win32-x64"
+#define SourceDir "..\dist\app\MUP Publisher-win32-x64"
 #define IconFile "..\assets\MUP_logo_1.ico"
 
 [Setup]
@@ -14,11 +14,11 @@ AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppUrl}
 AppSupportURL={#MyAppUrl}
 AppUpdatesURL={#MyAppUrl}
-DefaultDirName={autopf}\Plaintext To Markdown
+DefaultDirName={autopf}\MUP Publisher
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir=..\dist\installer
-OutputBaseFilename=PlaintextToMarkdownSetup-{#MyAppVersion}
+OutputBaseFilename=MUP-Publisher-Setup-{#MyAppVersion}
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
