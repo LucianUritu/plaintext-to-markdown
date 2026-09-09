@@ -273,6 +273,30 @@ test("GitHub books restore bibliography pages and references", async () => {
   assert.equal(loaded.bibliography.content, "Notes");
   assert.equal(loaded.bibliography.references[0].title, "Reliable Source");
 });
+test("GitHub books restore images relative to chapter files", async () => {
+  const imageContent = "image";
+  const files = {
+    "book/_config.yml": "title: Book\n",
+    "book/_toc.yml": "format: jb-book\nroot: intro\nparts:\n  - caption: Chapters\n    chapters:\n      - file: chapters/one\n",
+    "book/intro.md": "# Introduction\n\nWelcome",
+    "book/chapters/one.md": "# One\n\n![Diagram](images/cheatsheet.png)",
+    "book/chapters/images/cheatsheet.png": imageContent
+  };
+  const requestedPaths = [];
+  const githubClient = {
+    async fetchRepositoryFile({ path }) {
+      requestedPaths.push(path);
+      return files[path] ? { content: Buffer.from(files[path]).toString("base64") } : null;
+    }
+  };
+  const loaded = await new TeachBooksService(githubClient).loadBook({ owner: "alice", repoName: "book", branch: "main" });
+
+  assert.equal(loaded.images.length, 1);
+  assert.equal(loaded.images[0].path, "images/cheatsheet.png");
+  assert.equal(loaded.images[0].dataUrl, "data:image/png;base64," + Buffer.from(imageContent).toString("base64"));
+  assert.ok(requestedPaths.includes("book/images/cheatsheet.png"));
+  assert.ok(requestedPaths.includes("book/chapters/images/cheatsheet.png"));
+});
 
 function fakeResponse() { return { header: "", setHeader(name, value) { if (name === "Set-Cookie") this.header = value; } }; }
 function fakeHttpResponse() {

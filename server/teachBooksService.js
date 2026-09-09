@@ -120,7 +120,8 @@ class TeachBooksService {
       branch,
       sections: [
         {
-          content: introDocument.content
+          content: introDocument.content,
+          sourcePath: rootPath
         },
         ...chapters
       ]
@@ -316,15 +317,16 @@ class TeachBooksService {
   }
 
   async loadImages({ owner, repoName, branch, sections }) {
-    const imagePaths = collectLocalImagePaths(sections);
+    const imageReferences = collectLocalImageReferences(sections);
     const images = [];
 
-    for (const imagePath of imagePaths) {
-      const imageFile = await this.githubClient.fetchRepositoryFile({
+    for (const imageReference of imageReferences) {
+      const imagePath = imageReference.markdownPath;
+      const imageFile = await this.fetchFirstExistingFile({
         owner,
-        repo: repoName,
+        repoName,
         branch,
-        path: "book/" + imagePath
+        paths: imageReference.repositoryPaths
       });
 
       if (!imageFile || !imageFile.content) {
@@ -344,6 +346,23 @@ class TeachBooksService {
     }
 
     return images;
+  }
+
+  async fetchFirstExistingFile({ owner, repoName, branch, paths }) {
+    for (const path of paths) {
+      const file = await this.githubClient.fetchRepositoryFile({
+        owner,
+        repo: repoName,
+        branch,
+        path: "book/" + path
+      });
+
+      if (file) {
+        return file;
+      }
+    }
+
+    return null;
   }
 }
 
@@ -390,29 +409,30 @@ function createPagesUrl({ owner, repoName, branch }) {
   return baseUrl;
 }
 
-function collectLocalImagePaths(sections) {
-  const imagePaths = new Set();
+function collectLocalImageReferences(sections) {
+  const imageReferences = new Map();
 
   sections.forEach(function (section) {
     const content = String((section && section.content) || "");
+    const sourcePath = String((section && section.sourcePath) || "");
     const imagePattern = /!\[[^\]]*]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
     let match = imagePattern.exec(content);
 
     while (match) {
-      const imagePath = normalizeLocalImagePath(match[1]);
+      const imageReference = createLocalImageReference(match[1], sourcePath);
 
-      if (imagePath) {
-        imagePaths.add(imagePath);
+      if (imageReference && !imageReferences.has(imageReference.markdownPath)) {
+        imageReferences.set(imageReference.markdownPath, imageReference);
       }
 
       match = imagePattern.exec(content);
     }
   });
 
-  return Array.from(imagePaths);
+  return Array.from(imageReferences.values());
 }
 
-function normalizeLocalImagePath(path) {
+function createLocalImageReference(path, sourcePath) {
   const normalizedPath = String(path || "").replace(/\\/g, "/").trim();
 
   if (
@@ -421,10 +441,28 @@ function normalizeLocalImagePath(path) {
     normalizedPath.startsWith("/") ||
     normalizedPath.includes("../")
   ) {
-    return "";
+    return null;
   }
 
-  return normalizedPath.replace(/^book\//, "").replace(/^chapters\//, "");
+  const markdownPath = normalizedPath.replace(/^book\//, "");
+  const repositoryPaths = [
+    markdownPath,
+    resolveImagePathFromSource(markdownPath, sourcePath)
+  ].filter(Boolean);
+
+  return {
+    markdownPath,
+    repositoryPaths: Array.from(new Set(repositoryPaths))
+  };
+}
+
+function resolveImagePathFromSource(imagePath, sourcePath) {
+  const cleanSourcePath = String(sourcePath || "").replace(/\\/g, "/").replace(/^book\//, "");
+  const sourceDirectory = cleanSourcePath.includes("/")
+    ? cleanSourcePath.slice(0, cleanSourcePath.lastIndexOf("/"))
+    : "";
+
+  return sourceDirectory ? sourceDirectory + "/" + imagePath : imagePath;
 }
 
 function inferImageMimeType(path) {
