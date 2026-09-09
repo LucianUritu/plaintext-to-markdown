@@ -42,6 +42,21 @@ test("book URLs encode owner, repo, and branch", async () => {
   assert.match(requested, /a%20b\/r%2Fx/);
   assert.match(requested, /feature%2Fx/);
 });
+test("image URLs encode owner, repo, branch, and path", async () => {
+  let requested = "";
+  await withFetch((url) => { requested = url; return { ok: true, json: async () => ({ image: { dataUrl: "data:image/png;base64,YQ==" } }) }; }, async () => {
+    await (await githubApi).loadGitHubImage({
+      owner: "a b",
+      repo: "r/x",
+      branch: "feature/x",
+      path: "images/a file.png"
+    });
+  });
+  assert.match(requested, /owner=a\+b/);
+  assert.match(requested, /repo=r%2Fx/);
+  assert.match(requested, /branch=feature%2Fx/);
+  assert.match(requested, /path=images%2Fa\+file\.png/);
+});
 test("publish preview sends JSON", async () => {
   let options;
   await withFetch((url, value) => { options = value; return { ok: true, json: async () => ({ csrfToken: "token", ok: true }) }; }, async () => {

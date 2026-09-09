@@ -56,6 +56,7 @@ import { VersionPickerModal } from "./versionPickerModal.js";
 document.addEventListener("DOMContentLoaded", function () {
   const elements = getEditorElements();
   const imagePreviewUrls = {};
+  const pendingPreviewImageLoads = new Set();
   const choiceModal = new ChoiceModal(elements);
   const versionPickerModal = new VersionPickerModal(elements);
   const publishProgress = new PublishProgress(elements);
@@ -261,10 +262,68 @@ document.addEventListener("DOMContentLoaded", function () {
 
     elements.markdownOutput.textContent = markdown;
     elements.previewOutput.innerHTML = markdownToHtml(markdown, imagePreviewUrls);
+    hydratePreviewImagesFromGitHub();
 
     updateWritingStats();
 
     saveActiveEditorContent();
+  }
+
+  function hydratePreviewImagesFromGitHub() {
+    if (!currentBook) {
+      return;
+    }
+
+    const target = getPublishTarget();
+
+    if (!target.owner || !target.repo || !target.branch) {
+      return;
+    }
+
+    elements.previewOutput
+      .querySelectorAll("img[data-image-path]")
+      .forEach(function (imageElement) {
+        const markdownPath = normalizePreviewImagePath(
+          imageElement.dataset.imagePath
+        );
+
+        if (
+          !markdownPath ||
+          imagePreviewUrls[markdownPath] ||
+          pendingPreviewImageLoads.has(markdownPath)
+        ) {
+          return;
+        }
+
+        pendingPreviewImageLoads.add(markdownPath);
+        loadGitHubImage({
+          owner: target.owner,
+          repo: target.repo,
+          branch: target.branch,
+          path: markdownPath
+        })
+          .then(function (result) {
+            const image = result && result.image;
+
+            if (!image || !image.dataUrl) {
+              return;
+            }
+
+            const savedImage = {
+              ...image,
+              path: markdownPath
+            };
+
+            saveImageToCurrentBook(savedImage);
+            imageElement.src = savedImage.dataUrl;
+          })
+          .catch(function (error) {
+            console.error(error);
+          })
+          .finally(function () {
+            pendingPreviewImageLoads.delete(markdownPath);
+          });
+      });
   }
 
   async function recoverMissingImagesFromPublishedBook() {
@@ -340,6 +399,21 @@ document.addEventListener("DOMContentLoaded", function () {
   function loadImagePreviewUrlsFromCurrentBook() {
     clearImagePreviewUrls();
     refreshImagePreviewUrls();
+  }
+
+  function normalizePreviewImagePath(path) {
+    const normalizedPath = String(path || "").replace(/\\/g, "/").trim();
+
+    if (
+      !normalizedPath ||
+      /^(https?:|data:image\/)/i.test(normalizedPath) ||
+      normalizedPath.startsWith("/") ||
+      normalizedPath.includes("../")
+    ) {
+      return "";
+    }
+
+    return normalizedPath.replace(/^book\//, "");
   }
 
   function saveImageToCurrentBook(image) {

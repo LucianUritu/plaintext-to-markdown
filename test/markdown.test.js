@@ -53,6 +53,7 @@ test("renderer formats bibliography targets and entries", async () => {
   assert.doesNotMatch(html, /bibliography-references:start/);
 });
 test("renderer uses image preview URLs", async () => assert.match((await renderer).markdownToHtml("![A](images/a.png)", { "images/a.png": "blob:test" }), /src="blob:test"/));
+test("renderer marks image paths for preview recovery", async () => assert.match((await renderer).markdownToHtml("![A](images/a.png)"), /data-image-path="images\/a\.png"/));
 test("renderer normalizes book-prefixed image preview URLs", async () => assert.match((await renderer).markdownToHtml("![A](book/images/a.png)", { "images/a.png": "blob:test" }), /src="blob:test"/));
 test("renderer escapes image attributes", async () => assert.match((await renderer).markdownToHtml("![A & B](x.png)"), /A &amp; B/));
 test("safe filename strips unsupported characters", async () => assert.equal((await utils).makeSafeFileName(" A Weird/File?.PNG "), "a-weirdfile.png"));

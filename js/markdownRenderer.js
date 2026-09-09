@@ -145,6 +145,8 @@ function renderMarkdownImage(line, imagePreviewUrls) {
     escapeAttribute(previewUrl) +
     '" alt="' +
     escapeAttribute(altText) +
+    '" data-image-path="' +
+    escapeAttribute(markdownPath) +
     '">' +
     "<figcaption>" +
     renderInlineMarkdown(altText) +
